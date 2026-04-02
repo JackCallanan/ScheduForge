@@ -94,7 +94,7 @@ export const initialState: AppState = {
       durationHours: 4,
       position: "Cashier",
       location: "Store A",
-      assignedEmployeeId: 2,
+      assignedUserId: 2,
       assignedByManagerUserId: 1,
     },
     {
@@ -105,7 +105,7 @@ export const initialState: AppState = {
       durationHours: 4,
       position: "Floor",
       location: "Store A",
-      assignedEmployeeId: 2,
+      assignedUserId: 2,
       assignedByManagerUserId: 1,
     },
     {
@@ -116,7 +116,7 @@ export const initialState: AppState = {
       durationHours: 4,
       position: "Cashier",
       location: "Store A",
-      assignedEmployeeId: 3,
+      assignedUserId: 3,
       assignedByManagerUserId: 1,
     },
     {
@@ -127,7 +127,7 @@ export const initialState: AppState = {
       durationHours: 4,
       position: "Stock",
       location: "Store A",
-      assignedEmployeeId: 4,
+      assignedUserId: 4,
       assignedByManagerUserId: 1,
     },
   ],

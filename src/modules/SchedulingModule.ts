@@ -18,10 +18,10 @@ export const getBusinessRulesForDate = (state: AppState, date: string): DailyBus
   };
 };
 
-export const notifyEmployees = (state: AppState, message: string): AppState => {
+export const notifyUsers = (state: AppState, message: string): AppState => {
   let notifications = [...state.notifications];
-  state.employees.forEach((employee) => {
-    notifications = addNotification(notifications, employee.userId, message);
+  state.users.forEach((user) => {
+    notifications = addNotification(notifications, user.userId, message);
   });
   return { ...state, notifications };
 };
@@ -44,12 +44,12 @@ const withinBusinessHours = (
 const getUserRoleByAssignedId = (state: AppState, assignedUserId: number) =>
   state.users.find((item) => item.userId === assignedUserId)?.role;
 
-const hasEmployeeOverlap = (state: AppState, input: NewShiftInput, ignoreShiftId?: number) =>
+const hasUserOverlap = (state: AppState, input: NewShiftInput, ignoreShiftId?: number) =>
   state.shifts.some(
     (shift) =>
       shift.shiftId !== ignoreShiftId &&
       shift.date === input.date &&
-      shift.assignedEmployeeId === input.assignedEmployeeId &&
+      shift.assignedUserId === input.assignedUserId &&
       overlaps(shift.startTime, shift.endTime, input.startTime, input.endTime),
   );
 
@@ -129,10 +129,10 @@ export const getOpeningCoverage = (state: AppState, date: string) => {
     (item) => item.date === date && item.startTime <= businessOpenTime && item.endTime > businessOpenTime,
   );
   const managerCount = openingShifts.filter(
-    (item) => getUserRoleByAssignedId(state, item.assignedEmployeeId) === "Manager",
+    (item) => getUserRoleByAssignedId(state, item.assignedUserId) === "Manager",
   ).length;
   const employeeCount = openingShifts.filter(
-    (item) => getUserRoleByAssignedId(state, item.assignedEmployeeId) === "Employee",
+    (item) => getUserRoleByAssignedId(state, item.assignedUserId) === "Employee",
   ).length;
   return { managerCount, employeeCount };
 };
@@ -168,10 +168,10 @@ const getCoverageForSlot = (
       item.endTime >= endTime,
   );
   const managerCount = slotShifts.filter(
-    (item) => getUserRoleByAssignedId(state, item.assignedEmployeeId) === "Manager",
+    (item) => getUserRoleByAssignedId(state, item.assignedUserId) === "Manager",
   ).length;
   const employeeCount = slotShifts.filter(
-    (item) => getUserRoleByAssignedId(state, item.assignedEmployeeId) === "Employee",
+    (item) => getUserRoleByAssignedId(state, item.assignedUserId) === "Employee",
   ).length;
   return { managerCount, employeeCount };
 };
@@ -235,13 +235,13 @@ export const addManagerShift = (
   if (!withinBusinessHours(state, input.date, input.startTime, input.endTime)) {
     return { state, error: "Shift must stay within business open and close hours." };
   }
-  if (hasEmployeeOverlap(state, input)) {
+  if (hasUserOverlap(state, input)) {
     return { state, error: "This employee already has an overlapping shift." };
   }
 
   const schedule = findOrCreateDailySchedule(state, manager, input.date);
   const shiftId = nextId(state.shifts.map((item) => item.shiftId));
-  const derivedPosition = input.position?.trim() || state.requiredPositions[0] || "General Employee";
+  const derivedPosition = input.position?.trim() || state.requiredPositions[0] || "";
   const derivedLocation = input.location?.trim() || "Primary Site";
   const shift: Shift = {
     shiftId,
@@ -251,7 +251,7 @@ export const addManagerShift = (
     durationHours: calculateDurationHours(input.startTime, input.endTime),
     position: derivedPosition,
     location: derivedLocation,
-    assignedEmployeeId: input.assignedEmployeeId,
+    assignedUserId: input.assignedUserId,
     assignedByManagerUserId: manager.userId,
   };
 
@@ -263,9 +263,9 @@ export const addManagerShift = (
     : [...state.schedules, { ...schedule, shifts: [shiftId] }];
 
   return {
-    state: notifyEmployees(
+    state: notifyUsers(
       { ...state, shifts: [...state.shifts, shift], schedules },
-      `New manager-assigned shift on ${input.date}: ${derivedPosition}.`,
+      `New shift assigned by ${manager.name} on ${input.date}${derivedPosition ? `: ${derivedPosition}` : ""}.`,
     ),
   };
 };
@@ -274,12 +274,31 @@ export const deleteShift = (
   state: AppState,
   shiftId: number,
 ): { state: AppState; error?: string } => {
-  const exists = state.shifts.some((s) => s.shiftId === shiftId);
-  if (!exists) {
+  const shift = state.shifts.find((s) => s.shiftId === shiftId);
+  if (!shift) {
     return { state, error: "Shift not found." };
   }
   const availableForShift = state.availableShifts.filter((a) => a.shiftId === shiftId);
   const availableIds = new Set(availableForShift.map((a) => a.availableShiftId));
+
+  let notifications = [...state.notifications];
+
+  // Notify the assigned user
+  const assignedUser = state.users.find((u) => u.userId === shift.assignedUserId);
+  if (assignedUser) {
+    const message = `Your shift on ${shift.date} from ${formatTime12h(shift.startTime)} to ${formatTime12h(shift.endTime)} has been deleted.`;
+    notifications = addNotification(notifications, assignedUser.userId, message);
+  }
+
+  // Optionally notify the manager who assigned it, if different from the assigned user
+  if (shift.assignedByManagerUserId && shift.assignedByManagerUserId !== assignedUser?.userId) {
+    const manager = state.managers.find((m) => m.userId === shift.assignedByManagerUserId);
+    if (manager) {
+      const message = `The shift on ${shift.date} from ${formatTime12h(shift.startTime)} to ${formatTime12h(shift.endTime)} assigned to ${assignedUser?.name || 'a user'} has been deleted.`;
+      notifications = addNotification(notifications, manager.userId, message);
+    }
+  }
+
   return {
     state: {
       ...state,
@@ -290,6 +309,7 @@ export const deleteShift = (
       })),
       availableShifts: state.availableShifts.filter((a) => a.shiftId !== shiftId),
       shiftRequests: state.shiftRequests.filter((r) => !availableIds.has(r.availableShiftId)),
+      notifications,
     },
   };
 };
@@ -322,9 +342,9 @@ export const generateAIHandsOffSchedule = (
 
   let nextState = state;
   let assigneePointer = 0;
-  const assignees = [...nextState.managers.map((item) => item.userId), ...nextState.employees.map((item) => item.employeeID)];
+  const userIds = [...nextState.managers.map((item) => item.userId), ...nextState.employees.map((item) => item.userId)];
   for (const slot of slots) {
-    const assignedEmployeeId = assignees[assigneePointer % assignees.length];
+    const assignedUserId = userIds[assigneePointer % userIds.length];
     assigneePointer += 1;
     let created = addManagerShift(nextState, manager, {
       date,
@@ -332,18 +352,18 @@ export const generateAIHandsOffSchedule = (
       endTime: slot.endTime,
       position: "Coverage",
       location: "Primary Site",
-      assignedEmployeeId,
+      assignedUserId,
     });
 
     if (created.error) {
-      for (const fallbackAssignedEmployeeId of assignees) {
+      for (const fallbackAssignedUserId of userIds) {
         created = addManagerShift(nextState, manager, {
           date,
           startTime: slot.startTime,
           endTime: slot.endTime,
           position: "Coverage",
           location: "Primary Site",
-          assignedEmployeeId: fallbackAssignedEmployeeId,
+          assignedUserId: fallbackAssignedUserId,
         });
         if (!created.error) break;
       }
@@ -366,7 +386,7 @@ export const generateAIHandsOffSchedule = (
         endTime: slot.endTime,
         position: "Manager Coverage",
         location: "Primary Site",
-        assignedEmployeeId: managerAssignee.userId,
+        assignedUserId: managerAssignee.userId,
       });
       if (created.error) break;
       nextState = created.state;
@@ -381,7 +401,7 @@ export const generateAIHandsOffSchedule = (
         endTime: slot.endTime,
         position: "Employee Coverage",
         location: "Primary Site",
-        assignedEmployeeId: employeeAssignee.employeeID,
+        assignedUserId: employeeAssignee.userId,
       });
       if (created.error) break;
       nextState = created.state;

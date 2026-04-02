@@ -81,7 +81,7 @@ export const registerUser = (
 
 export const postShift = (
   state: AppState,
-  employee: Employee,
+  user: User,
   shiftId: number,
   reason: string,
 ): { state: AppState; error?: string } => {
@@ -90,14 +90,14 @@ export const postShift = (
     return { state, error: "Shift not found." };
   }
 
-  const result = markAsAvailable(state, shift, reason, employee);
+  const result = markAsAvailable(state, shift, reason, user);
   if (result.error) {
     return { state, error: result.error };
   }
 
   let notifications = result.state.notifications;
-  result.state.employees
-    .filter((item) => item.employeeID !== employee.employeeID)
+  result.state.users
+    .filter((item) => item.userId !== user.userId)
     .forEach((item) => {
       notifications = addNotification(
         notifications,
@@ -105,20 +105,18 @@ export const postShift = (
         `New available shift on ${shift.date} (${formatTimeRange12h(shift.startTime, shift.endTime)}).`,
       );
     });
-  result.state.managers.forEach((manager) => {
-    notifications = addNotification(
-      notifications,
-      manager.userId,
-      `${employee.name} posted shift ${shift.shiftId} for coverage.`,
-    );
-  });
+  notifications = addNotification(
+    notifications,
+    user.userId,
+    `${user.name} posted shift ${shift.shiftId} for coverage.`,
+  );
 
   return { state: { ...result.state, notifications } };
 };
 
 export const requestToCover = (
   state: AppState,
-  employee: Employee,
+  user: User,
   availableShiftId: number,
 ): { state: AppState; error?: string } => {
   const availableShift = state.availableShifts.find(
@@ -133,8 +131,20 @@ export const requestToCover = (
     return { state, error: "Shift was not found." };
   }
 
+  const assignedUser = state.users.find((item) => item.userId === shift.assignedUserId);
+  if (!assignedUser) {
+    return { state, error: "Assigned user not found." };
+  }
+
+  if (assignedUser.role === "Employee" && user.role !== "Employee") {
+    return { state, error: "Only employees can request to cover employee shifts." };
+  }
+  if (assignedUser.role === "Manager" && user.role !== "Manager") {
+    return { state, error: "Only managers can request to cover manager shifts." };
+  }
+
   const hasConflict = state.shifts
-    .filter((item) => item.assignedEmployeeId === employee.employeeID)
+    .filter((item) => item.assignedUserId === user.userId)
     .some((item) =>
       sameWindow(
         item.date,
@@ -146,13 +156,13 @@ export const requestToCover = (
       ),
     );
   if (hasConflict) {
-    return { state, error: "Employee is already scheduled during this time." };
+    return { state, error: "User is already scheduled during this time." };
   }
 
   const shiftRequest: ShiftRequest = {
     requestID: nextId(state.shiftRequests.map((item) => item.requestID)),
     status: RequestStatus.PENDING,
-    requesterId: employee.employeeID,
+    requesterId: user.userId,
     availableShiftId,
   };
 
@@ -161,7 +171,7 @@ export const requestToCover = (
     notifications = addNotification(
       notifications,
       manager.userId,
-      `${employee.name} requested to cover shift ${shift.shiftId}.`,
+      `${user.name} requested to cover shift ${shift.shiftId}.`,
     );
   });
 
@@ -174,11 +184,11 @@ export const requestToCover = (
   };
 };
 
-export const getAssignedShifts = (state: AppState, employee: Employee) =>
-  state.shifts.filter((item) => item.assignedEmployeeId === employee.employeeID);
+export const getAssignedShifts = (state: AppState, user: User) =>
+  state.shifts.filter((item) => item.assignedUserId === user.userId);
 
-export const getPostedAvailableShifts = (state: AppState, employee: Employee) =>
-  state.availableShifts.filter((item) => item.postedByEmployeeId === employee.employeeID);
+export const getPostedAvailableShifts = (state: AppState, user: User) =>
+  state.availableShifts.filter((item) => item.postedByUserId === user.userId);
 
 export const getSchedules = (state: AppState) => state.schedules;
 

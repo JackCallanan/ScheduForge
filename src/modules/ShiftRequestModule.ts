@@ -1,4 +1,4 @@
-import { assignEmployee, close, getShift, isAvailable } from "./ShiftManagementModule";
+import { assignUser, close, getShift, isAvailable } from "./ShiftManagementModule";
 import type {
   AppState,
   AvailableShift,
@@ -31,7 +31,7 @@ export const approve = (
     return { state, error: "Shift not found." };
   }
 
-  let nextState = assignEmployee(state, shift.shiftId, requester, managerId);
+  let nextState = assignUser(state, shift.shiftId, requester, managerId);
   nextState = close(nextState, availableShift.availableShiftId);
   nextState = {
     ...nextState,
@@ -97,7 +97,7 @@ export const reviewRequest = (
   if (availableShift) {
     notifications = addNotification(
       notifications,
-      availableShift.postedByEmployeeId,
+      availableShift.postedByUserId,
       `Coverage request for available shift ${availableShift.availableShiftId} was ${decision.toLowerCase()}.`,
     );
   }

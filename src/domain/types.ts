@@ -32,7 +32,7 @@ export interface Shift {
   durationHours: number;
   position: string;
   location: string;
-  assignedEmployeeId: number;
+  assignedUserId: number;
   /** User id of the manager who created or last assigned this shift (optional for legacy persisted data). */
   assignedByManagerUserId?: number;
 }
@@ -42,7 +42,7 @@ export interface AvailableShift {
   reason: string;
   isOpen: boolean;
   shiftId: number;
-  postedByEmployeeId: number;
+  postedByUserId: number;
 }
 
 export interface ShiftRequest {
@@ -75,7 +75,7 @@ export interface NewShiftInput {
   endTime: string;
   position: string;
   location: string;
-  assignedEmployeeId: number;
+  assignedUserId: number;
 }
 
 /** Defaults for any date not listed in `dailyBusinessRules`. */

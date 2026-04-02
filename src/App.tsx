@@ -28,7 +28,7 @@ import {
 type AuthMode = "login" | "signup";
 
 function assignmentLabels(state: AppState, shift: Shift): { assignedBy: string; assignedTo: string } {
-  const assignedTo = state.users.find((u) => u.userId === shift.assignedEmployeeId)?.name ?? "—";
+  const assignedTo = state.users.find((u) => u.userId === shift.assignedUserId)?.name ?? "—";
   const assignedBy =
     shift.assignedByManagerUserId != null
       ? state.users.find((u) => u.userId === shift.assignedByManagerUserId)?.name ?? "—"
@@ -97,13 +97,14 @@ function App() {
   const [aiDate, setAiDate] = useState("");
   const [operationsCheckDate, setOperationsCheckDate] = useState("");
   const [managerShiftViewDate, setManagerShiftViewDate] = useState("");
+  const [employeeShiftViewDate, setEmployeeShiftViewDate] = useState("");
   const [managerShiftDraft, setManagerShiftDraft] = useState<NewShiftInput>({
     date: "",
     startTime: "09:00",
     endTime: "13:00",
     position: "",
     location: "",
-    assignedEmployeeId: 2,
+    assignedUserId: 2,
   });
   const [error, setError] = useState<string>("");
 
@@ -114,20 +115,20 @@ function App() {
   const selectedUser = state.users.find((item) => item.userId === loggedInUserId) as User | undefined;
   const isManager = selectedUser?.role === "Manager";
 
-  const selectedEmployee = useMemo(
-    () => state.employees.find((item) => item.userId === loggedInUserId),
-    [state.employees, loggedInUserId],
-  );
-
   const myShifts = useMemo(() => {
-    if (selectedUser?.role !== "Employee") return state.shifts;
-    return selectedEmployee ? getAssignedShifts(state, selectedEmployee) : [];
-  }, [state, selectedUser, selectedEmployee]);
+    let shifts = selectedUser ? getAssignedShifts(state, selectedUser) : [];
+    if (employeeShiftViewDate) {
+      shifts = shifts.filter((item) => item.date === employeeShiftViewDate);
+    }
+    return shifts;
+  }, [state, selectedUser, employeeShiftViewDate]);
 
   const managerFilteredShifts = useMemo(
     () =>
-      selectedUser?.role === "Manager" && managerShiftViewDate
-        ? state.shifts.filter((item) => item.date === managerShiftViewDate)
+      selectedUser?.role === "Manager"
+        ? managerShiftViewDate
+          ? state.shifts.filter((item) => item.date === managerShiftViewDate)
+          : state.shifts
         : myShifts,
     [selectedUser, managerShiftViewDate, state.shifts, myShifts],
   );
@@ -139,7 +140,7 @@ function App() {
         .map((item) => ({
           availableShift: item,
           shift: state.shifts.find((s) => s.shiftId === item.shiftId),
-          postedBy: state.users.find((u) => u.userId === item.postedByEmployeeId),
+          postedBy: state.users.find((u) => u.userId === item.postedByUserId),
         }))
         .filter((row) => row.shift && row.postedBy),
     [state.availableShifts, state.shifts, state.users],
@@ -159,7 +160,7 @@ function App() {
       );
       const shift = state.shifts.find((item) => item.shiftId === availableShift?.shiftId);
       const requester = state.users.find((item) => item.userId === request.requesterId);
-      const poster = state.users.find((item) => item.userId === availableShift?.postedByEmployeeId);
+      const poster = state.users.find((item) => item.userId === availableShift?.postedByUserId);
       return { request, shift, requester, poster };
     })
     .filter((row) => row.shift && row.requester && row.poster);
@@ -206,9 +207,9 @@ function App() {
   };
 
   const handlePostShift = (shiftId: number) => {
-    if (!selectedEmployee) return;
+    if (!selectedUser) return;
     const reason = postReasonByShiftId[shiftId] ?? "";
-    const result = postShift(state, selectedEmployee, shiftId, reason);
+    const result = postShift(state, selectedUser, shiftId, reason);
     if (result.error) {
       setError(result.error);
       return;
@@ -219,8 +220,8 @@ function App() {
   };
 
   const handleRequestToCover = (availableShiftId: number) => {
-    if (!selectedEmployee) return;
-    const result = requestToCover(state, selectedEmployee, availableShiftId);
+    if (!selectedUser) return;
+    const result = requestToCover(state, selectedUser, availableShiftId);
     if (result.error) {
       setError(result.error);
       return;
@@ -383,6 +384,19 @@ function App() {
         <article className="panel">
           <h2>{isManager ? "All Assigned Shifts" : "My Schedule"}</h2>
           <div className="list">
+            {!isManager && (
+              <div className="card">
+                <label>View shifts for date (optional)</label>
+                <input
+                  type="date"
+                  value={employeeShiftViewDate}
+                  onChange={(e) => setEmployeeShiftViewDate(e.target.value)}
+                />
+                <button className="ghost" onClick={() => setEmployeeShiftViewDate("")}>
+                  Clear
+                </button>
+              </div>
+            )}
             {isManager ? (
               <div className="actions">
                 <label>View Date</label>
@@ -398,8 +412,7 @@ function App() {
             ) : null}
             <div className={isManager ? "list-scroll--shifts" : undefined}>
               {(isManager ? managerFilteredShifts : myShifts).map((shift) => {
-                const isMine =
-                  selectedEmployee != null && shift.assignedEmployeeId === selectedEmployee.employeeID;
+                const isMine = selectedUser != null && shift.assignedUserId === selectedUser.userId;
                 const { assignedBy, assignedTo } = assignmentLabels(state, shift);
                 return (
                   <div key={shift.shiftId} className="card">
@@ -456,7 +469,7 @@ function App() {
                 <p>Assigned To: {assignedTo}</p>
                 <p>Posted by: {row.postedBy!.name}</p>
                 <p>Reason: {row.availableShift.reason}</p>
-                {!isManager && row.postedBy!.userId !== selectedUser.userId ? (
+                {row.postedBy!.userId !== selectedUser.userId ? (
                   <button onClick={() => handleRequestToCover(row.availableShift.availableShiftId)}>
                     requestToCover()
                   </button>
@@ -466,6 +479,58 @@ function App() {
             })}
           </div>
         </article>
+
+        {isManager && (
+          <article className="panel">
+            <h2>My Shifts</h2>
+            <div className="list-scroll--shifts">
+              <div className="card">
+                <label>View shifts for date (optional)</label>
+                <input
+                  type="date"
+                  value={employeeShiftViewDate}
+                  onChange={(e) => setEmployeeShiftViewDate(e.target.value)}
+                />
+                <button className="ghost" onClick={() => setEmployeeShiftViewDate("")}>
+                  Clear
+                </button>
+              </div>
+              {myShifts.map((shift) => {
+                const { assignedBy, assignedTo } = assignmentLabels(state, shift);
+                return (
+                  <div key={shift.shiftId} className="card">
+                    <p><strong>{shift.date} {formatTimeRange12h(shift.startTime, shift.endTime)}</strong></p>
+                    <p>{shift.position} @ {shift.location}</p>
+                    <p>Assigned By: {assignedBy}</p>
+                    <p>Assigned To: {assignedTo}</p>
+                    <textarea
+                      placeholder="Reason for posting (required)"
+                      value={postReasonByShiftId[shift.shiftId] ?? ""}
+                      onChange={(e) => setPostReasonByShiftId((prev) => ({ ...prev, [shift.shiftId]: e.target.value }))}
+                    />
+                    <button onClick={() => handlePostShift(shift.shiftId)}>Post for Coverage</button>
+                  </div>
+                );
+              })}
+              {myShifts.length === 0 && <p>No shifts assigned.</p>}
+            </div>
+          </article>
+        )}
+
+        {isManager && (
+          <article className="panel">
+            <h2>Notifications</h2>
+            <div className="list">
+              {myNotifications.length === 0 ? <p>No notifications yet.</p> : null}
+              {myNotifications.map((item) => (
+                <div key={item.notificationId} className="card">
+                  <p>{item.message}</p>
+                  <small>{new Date(item.createdAt).toLocaleString()}</small>
+                </div>
+              ))}
+            </div>
+          </article>
+        )}
 
         <article className="panel">
           <h2>{isManager ? "Manager Requests Queue" : "My Request History"}</h2>
@@ -601,17 +666,12 @@ function App() {
                 <div className="actions">
                   <input type="date" value={managerShiftDraft.date} onChange={(e) => setManagerShiftDraft((p) => ({ ...p, date: e.target.value }))} />
                   <select
-                    value={managerShiftDraft.assignedEmployeeId}
-                    onChange={(e) => setManagerShiftDraft((p) => ({ ...p, assignedEmployeeId: Number(e.target.value) }))}
+                    value={managerShiftDraft.assignedUserId}
+                    onChange={(e) => setManagerShiftDraft((p) => ({ ...p, assignedUserId: Number(e.target.value) }))}
                   >
-                    {state.managers.map((manager) => (
-                      <option key={`m-${manager.managerId}`} value={manager.userId}>
-                        {manager.name} (Manager)
-                      </option>
-                    ))}
-                    {state.employees.map((employee) => (
-                      <option key={`e-${employee.employeeID}`} value={employee.employeeID}>
-                        {employee.name} (Employee)
+                    {state.users.map((user) => (
+                      <option key={`u-${user.userId}`} value={user.userId}>
+                        {user.name} ({user.role})
                       </option>
                     ))}
                   </select>

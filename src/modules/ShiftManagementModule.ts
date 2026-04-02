@@ -1,18 +1,18 @@
-import type { AppState, AvailableShift, Employee, Shift } from "../domain/types";
+import type { AppState, AvailableShift, Shift, User } from "../domain/types";
 import { nextId } from "./moduleUtils";
 
 export const markAsAvailable = (
   state: AppState,
   shift: Shift,
   reason: string,
-  employee: Employee,
+  user: User,
 ): { state: AppState; availableShift?: AvailableShift; error?: string } => {
   if (!reason.trim()) {
     return { state, error: "Reason is required." };
   }
 
-  if (shift.assignedEmployeeId !== employee.employeeID) {
-    return { state, error: "Employee is not assigned to this shift." };
+  if (shift.assignedUserId !== user.userId) {
+    return { state, error: "User is not assigned to this shift." };
   }
 
   const existing = state.availableShifts.find(
@@ -27,7 +27,7 @@ export const markAsAvailable = (
     reason: reason.trim(),
     isOpen: true,
     shiftId: shift.shiftId,
-    postedByEmployeeId: employee.employeeID,
+    postedByUserId: user.userId,
   };
 
   return {
@@ -36,10 +36,10 @@ export const markAsAvailable = (
   };
 };
 
-export const assignEmployee = (
+export const assignUser = (
   state: AppState,
   shiftId: number,
-  employee: Employee,
+  user: User,
   assignedByManagerUserId?: number,
 ): AppState => ({
   ...state,
@@ -47,7 +47,7 @@ export const assignEmployee = (
     item.shiftId === shiftId
       ? {
           ...item,
-          assignedEmployeeId: employee.employeeID,
+          assignedUserId: user.userId,
           ...(assignedByManagerUserId !== undefined ? { assignedByManagerUserId } : {}),
         }
       : item,
@@ -56,8 +56,8 @@ export const assignEmployee = (
 
 export const getShiftDuration = (shift: Shift): number => shift.durationHours;
 
-export const getAssignedEmployee = (state: AppState, shift: Shift): Employee | undefined =>
-  state.employees.find((item) => item.employeeID === shift.assignedEmployeeId);
+export const getAssignedUser = (state: AppState, shift: Shift): User | undefined =>
+  state.users.find((item) => item.userId === shift.assignedUserId);
 
 export const close = (state: AppState, availableShiftId: number): AppState => ({
   ...state,
