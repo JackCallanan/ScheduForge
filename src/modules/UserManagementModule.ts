@@ -108,7 +108,7 @@ export const postShift = (
   notifications = addNotification(
     notifications,
     user.userId,
-    `${user.name} posted shift ${shift.shiftId} for coverage.`,
+    `${user.name} posted a shift on ${shift.date} for coverage.`,
   );
 
   return { state: { ...result.state, notifications } };

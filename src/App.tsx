@@ -664,7 +664,9 @@ function App() {
               <div className="card">
                 <p><strong>Manager Shift Builder</strong></p>
                 <div className="actions">
+                  <label>Date</label>
                   <input type="date" value={managerShiftDraft.date} onChange={(e) => setManagerShiftDraft((p) => ({ ...p, date: e.target.value }))} />
+                  <label>Assign To</label>
                   <select
                     value={managerShiftDraft.assignedUserId}
                     onChange={(e) => setManagerShiftDraft((p) => ({ ...p, assignedUserId: Number(e.target.value) }))}
