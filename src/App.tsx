@@ -14,6 +14,7 @@ import {
   updateBusinessRules,
   updateGlobalBusinessBaseline,
 } from "./modules/SchedulingModule";
+import { close } from "./modules/ShiftManagementModule";
 import { formatTime12h, formatTimeRange12h } from "./modules/moduleUtils";
 import { reviewRequest } from "./modules/ShiftRequestModule";
 import {
@@ -227,6 +228,12 @@ function App() {
       return;
     }
     setState(result.state);
+    setError("");
+  };
+
+  const handleUnpostShift = (availableShiftId: number) => {
+    const newState = close(state, availableShiftId);
+    setState(newState);
     setError("");
   };
 
@@ -473,7 +480,11 @@ function App() {
                   <button onClick={() => handleRequestToCover(row.availableShift.availableShiftId)}>
                     requestToCover()
                   </button>
-                ) : null}
+                ) : (
+                  <button className="ghost" onClick={() => handleUnpostShift(row.availableShift.availableShiftId)}>
+                    Unpost
+                  </button>
+                )}
               </div>
             );
             })}
