@@ -586,6 +586,30 @@ function App() {
                   </p>
                 ) : null}
               </div>
+
+              <div className="card">
+                <p><strong>Operational Status Check</strong></p>
+                <div className="actions">
+                  <input
+                    type="date"
+                    value={operationsCheckDate}
+                    onChange={(e) => setOperationsCheckDate(e.target.value)}
+                  />
+                </div>
+                {operationsCheckDate ? (
+                  <p
+                    style={{
+                      color: getDailyOperationalStatus(state, operationsCheckDate).canOperate
+                        ? "#15803d"
+                        : "#b91c1c",
+                    }}
+                  >
+                    {getDailyOperationalStatus(state, operationsCheckDate).message}
+                  </p>
+                ) : (
+                  <p>Select a date to see if the business can operate.</p>
+                )}
+              </div>
             </div>
           </article>
         )}
@@ -732,30 +756,6 @@ function App() {
                   />
                 </div>
                 <button onClick={handleSaveBusinessSettings}>Save for this date</button>
-              </div>
-
-              <div className="card">
-                <p><strong>Operational Status Check</strong></p>
-                <div className="actions">
-                  <input
-                    type="date"
-                    value={operationsCheckDate}
-                    onChange={(e) => setOperationsCheckDate(e.target.value)}
-                  />
-                </div>
-                {operationsCheckDate ? (
-                  <p
-                    style={{
-                      color: getDailyOperationalStatus(state, operationsCheckDate).canOperate
-                        ? "#15803d"
-                        : "#b91c1c",
-                    }}
-                  >
-                    {getDailyOperationalStatus(state, operationsCheckDate).message}
-                  </p>
-                ) : (
-                  <p>Select a date to see if the business can operate.</p>
-                )}
               </div>
 
               <p>Total schedules: {state.schedules.length}</p>
