@@ -338,115 +338,141 @@ export const generateAIHandsOffSchedule = (
   if (state.employees.length === 0) return { state, error: "No employees available." };
   if (state.managers.length === 0) return { state, error: "No managers available." };
 
-  const slots = buildCoverageSlots(state, date);
   const dayRules = getBusinessRulesForDate(state, date);
+  const { businessOpenTime, businessCloseTime } = dayRules;
 
-  // Calculate total shifts needed for the day
-  const totalSlots = slots.length;
-  const totalManagerShiftsNeeded = Math.max(
-    totalSlots * dayRules.minimumOpeningManagers,
-    state.managers.length // Ensure each manager gets at least one shift
-  );
-  const totalEmployeeShiftsNeeded = Math.max(
-    totalSlots * dayRules.minimumOpeningEmployees,
-    state.employees.length // Ensure each employee gets at least one shift
-  );
+  // Create realistic shift blocks instead of 1-hour slots
+  const createShiftBlocks = () => {
+    const blocks: Array<{ startTime: string; endTime: string; type: 'morning' | 'afternoon' | 'evening' }> = [];
+    const [openHour] = businessOpenTime.split(':').map(Number);
+    const [closeHour] = businessCloseTime.split(':').map(Number);
+
+    // Morning shift: open time to ~2-3 hours before noon
+    const morningEndHour = Math.min(openHour + 4, Math.max(openHour + 2, 12));
+    if (morningEndHour > openHour) {
+      blocks.push({
+        startTime: businessOpenTime,
+        endTime: `${String(morningEndHour).padStart(2, '0')}:00`,
+        type: 'morning'
+      });
+    }
+
+    // Afternoon shift: morning end to ~4-5 hours before close
+    const afternoonStartHour = morningEndHour;
+    const afternoonEndHour = Math.max(afternoonStartHour + 4, closeHour - 2);
+    if (afternoonEndHour > afternoonStartHour && afternoonEndHour <= closeHour) {
+      blocks.push({
+        startTime: `${String(afternoonStartHour).padStart(2, '0')}:00`,
+        endTime: `${String(afternoonEndHour).padStart(2, '0')}:00`,
+        type: 'afternoon'
+      });
+    }
+
+    // Evening shift: afternoon end to close (if there's gap)
+    const eveningStartHour = afternoonEndHour;
+    if (eveningStartHour < closeHour) {
+      blocks.push({
+        startTime: `${String(eveningStartHour).padStart(2, '0')}:00`,
+        endTime: businessCloseTime,
+        type: 'evening'
+      });
+    }
+
+    // If no blocks were created (very short day), create one full shift
+    if (blocks.length === 0) {
+      blocks.push({
+        startTime: businessOpenTime,
+        endTime: businessCloseTime,
+        type: 'morning'
+      });
+    }
+
+    return blocks;
+  };
+
+  const shiftBlocks = createShiftBlocks();
 
   let nextState = state;
 
-  // Intelligent shift distribution algorithm
-  const assignShiftsIntelligently = (
+  // Intelligent shift assignment with longer blocks
+  const assignShiftsToBlocks = (
     users: Array<{ userId: number; role: 'Manager' | 'Employee' }>,
-    totalShiftsNeeded: number,
+    minPerBlock: number,
     positionPrefix: string
   ) => {
-    // Track shifts assigned to each user
-    const userShiftCounts = new Map<number, number>();
-    users.forEach(user => userShiftCounts.set(user.userId, 0));
+    // Calculate how many users we need per block
+    const usersPerBlock = Math.max(1, Math.min(users.length, minPerBlock));
 
-    // Calculate base shifts per user and remainder
-    const baseShiftsPerUser = Math.floor(totalShiftsNeeded / users.length);
-    const remainderShifts = totalShiftsNeeded % users.length;
+    for (const block of shiftBlocks) {
+      // Shuffle users for variety
+      const shuffledUsers = [...users].sort(() => Math.random() - 0.5);
 
-    // Assign base shifts + one extra for remainder users
-    const targetShiftCounts = new Map<number, number>();
-    users.forEach((user, index) => {
-      targetShiftCounts.set(user.userId, baseShiftsPerUser + (index < remainderShifts ? 1 : 0));
-    });
+      // Assign users to this block
+      for (let i = 0; i < usersPerBlock && i < shuffledUsers.length; i++) {
+        const user = shuffledUsers[i];
 
-    // Assign shifts to slots using intelligent distribution
-    for (const slot of slots) {
-      // Find users who haven't reached their target and don't have conflicts
-      const availableUsers = users.filter(user => {
-        const currentCount = userShiftCounts.get(user.userId) || 0;
-        const targetCount = targetShiftCounts.get(user.userId) || 0;
-        return currentCount < targetCount;
-      });
-
-      if (availableUsers.length === 0) {
-        // If no users available for target, use any available user
-        availableUsers.push(...users);
-      }
-
-      // Try to assign to a user who doesn't have this slot
-      let assigned = false;
-      for (const user of availableUsers) {
+        // Check for conflicts
         const hasConflict = nextState.shifts.some(shift =>
           shift.assignedUserId === user.userId &&
           shift.date === date &&
-          overlaps(shift.startTime, shift.endTime, slot.startTime, slot.endTime)
+          overlaps(shift.startTime, shift.endTime, block.startTime, block.endTime)
         );
 
         if (!hasConflict) {
           const created = addManagerShift(nextState, manager, {
             date,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
+            startTime: block.startTime,
+            endTime: block.endTime,
             position: `${positionPrefix} Coverage`,
             location: "Primary Site",
             assignedUserId: user.userId,
           });
 
-          if (!created.error) {
-            nextState = created.state;
-            userShiftCounts.set(user.userId, (userShiftCounts.get(user.userId) || 0) + 1);
-            assigned = true;
-            break;
-          }
-        }
-      }
+          if (created.error) {
+            // Try to find another user for this slot
+            for (const fallbackUser of users) {
+              if (fallbackUser.userId === user.userId) continue;
 
-      if (!assigned) {
-        // Fallback: assign to first available user even with potential overlap
-        for (const user of users) {
-          const created = addManagerShift(nextState, manager, {
-            date,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            position: `${positionPrefix} Coverage`,
-            location: "Primary Site",
-            assignedUserId: user.userId,
-          });
+              const fallbackConflict = nextState.shifts.some(shift =>
+                shift.assignedUserId === fallbackUser.userId &&
+                shift.date === date &&
+                overlaps(shift.startTime, shift.endTime, block.startTime, block.endTime)
+              );
 
-          if (!created.error) {
+              if (!fallbackConflict) {
+                const fallbackCreated = addManagerShift(nextState, manager, {
+                  date,
+                  startTime: block.startTime,
+                  endTime: block.endTime,
+                  position: `${positionPrefix} Coverage`,
+                  location: "Primary Site",
+                  assignedUserId: fallbackUser.userId,
+                });
+
+                if (!fallbackCreated.error) {
+                  nextState = fallbackCreated.state;
+                  break;
+                }
+              }
+            }
+          } else {
             nextState = created.state;
-            userShiftCounts.set(user.userId, (userShiftCounts.get(user.userId) || 0) + 1);
-            break;
           }
         }
       }
     }
   };
 
-  // Assign manager shifts intelligently
+  // Assign manager shifts to blocks
   const managerUsers = state.managers.map(m => ({ userId: m.userId, role: 'Manager' as const }));
-  assignShiftsIntelligently(managerUsers, totalManagerShiftsNeeded, "Manager");
+  assignShiftsToBlocks(managerUsers, dayRules.minimumOpeningManagers, "Manager");
 
-  // Assign employee shifts intelligently
+  // Assign employee shifts to blocks
   const employeeUsers = state.employees.map(e => ({ userId: e.userId, role: 'Employee' as const }));
-  assignShiftsIntelligently(employeeUsers, totalEmployeeShiftsNeeded, "Employee");
+  assignShiftsToBlocks(employeeUsers, dayRules.minimumOpeningEmployees, "Employee");
 
   // Final verification: ensure minimum coverage requirements are met
+  const slots = buildCoverageSlots(state, date); // Use original slots for verification
   for (const slot of slots) {
     let slotCoverage = getCoverageForSlot(nextState, date, slot.startTime, slot.endTime);
 
@@ -462,7 +488,7 @@ export const generateAIHandsOffSchedule = (
 
       if (availableManagers.length === 0) break;
 
-      const managerToAssign = availableManagers[0]; // Assign to first available
+      const managerToAssign = availableManagers[0];
       const created = addManagerShift(nextState, manager, {
         date,
         startTime: slot.startTime,
@@ -489,7 +515,7 @@ export const generateAIHandsOffSchedule = (
 
       if (availableEmployees.length === 0) break;
 
-      const employeeToAssign = availableEmployees[0]; // Assign to first available
+      const employeeToAssign = availableEmployees[0];
       const created = addManagerShift(nextState, manager, {
         date,
         startTime: slot.startTime,
