@@ -578,13 +578,6 @@ function App() {
                     <button onClick={handleGenerateAI}>Generate AI Schedule</button>
                   </div>
                 ) : null}
-                {aiDate ? (
-                  <p>
-                    {getDailyOperationalStatus(state, aiDate).canOperate
-                      ? "AI day coverage: operational"
-                      : `AI day coverage: ${getDailyOperationalStatus(state, aiDate).message}`}
-                  </p>
-                ) : null}
               </div>
 
               <div className="card">
