@@ -21,7 +21,7 @@ export const approve = (
     return { state, error: "Available shift is closed." };
   }
 
-  const requester = state.employees.find((item) => item.employeeID === request.requesterId);
+  const requester = state.users.find((item) => item.userId === request.requesterId);
   if (!requester) {
     return { state, error: "Requester not found." };
   }

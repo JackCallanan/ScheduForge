@@ -171,7 +171,7 @@ export const requestToCover = (
     notifications = addNotification(
       notifications,
       manager.userId,
-      `${user.name} requested to cover shift ${shift.shiftId}.`,
+      `${user.name} requested to cover a shift on ${shift.date}.`,
     );
   });
 
