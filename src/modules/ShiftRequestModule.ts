@@ -85,20 +85,23 @@ export const reviewRequest = (
 
   const requester = getRequester(decisionState.state, request);
   const availableShift = getAvailableShift(decisionState.state, request);
+  const shift = availableShift
+    ? decisionState.state.shifts.find((s) => s.shiftId === availableShift.shiftId)
+    : undefined;
 
   let notifications = decisionState.state.notifications;
-  if (requester) {
+  if (requester && shift) {
     notifications = addNotification(
       notifications,
       requester.userId,
-      `Shift request ${request.requestID} was ${decision.toLowerCase()}.`,
+      `Your request to cover a shift on ${shift.date} was ${decision.toLowerCase()}.`,
     );
   }
-  if (availableShift) {
+  if (availableShift && shift) {
     notifications = addNotification(
       notifications,
       availableShift.postedByUserId,
-      `Coverage request for available shift ${availableShift.availableShiftId} was ${decision.toLowerCase()}.`,
+      `Coverage request for your shift on ${shift.date} was ${decision.toLowerCase()}.`,
     );
   }
 
