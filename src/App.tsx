@@ -415,6 +415,21 @@ function App() {
                 <button className="ghost" onClick={() => setManagerShiftViewDate("")}>
                   Clear
                 </button>
+                {managerShiftViewDate && (
+                  <span
+                    style={{
+                      marginLeft: "1rem",
+                      color: getDailyOperationalStatus(state, managerShiftViewDate).canOperate
+                        ? "#15803d"
+                        : "#b91c1c",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {getDailyOperationalStatus(state, managerShiftViewDate).canOperate
+                      ? "✓ Operational"
+                      : "✗ Not Operational"}
+                  </span>
+                )}
               </div>
             ) : null}
             <div className={isManager ? "list-scroll--shifts" : undefined}>
