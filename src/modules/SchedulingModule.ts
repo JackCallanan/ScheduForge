@@ -265,7 +265,7 @@ export const addManagerShift = (
   return {
     state: notifyUsers(
       { ...state, shifts: [...state.shifts, shift], schedules },
-      `New shift assigned by ${manager.name} on ${input.date}${derivedPosition ? `: ${derivedPosition}` : ""}.`,
+      `New shift assigned by ${manager.name} on ${input.date}.`,
     ),
   };
 };
