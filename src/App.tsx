@@ -530,6 +530,68 @@ function App() {
 
         {isManager && (
           <article className="panel">
+            <h2>Shift Creation</h2>
+            <div className="list">
+              <div className="card">
+                <p><strong>Manager Shift Builder</strong></p>
+                <div className="actions">
+                  <label>Date</label>
+                  <input type="date" value={managerShiftDraft.date} onChange={(e) => setManagerShiftDraft((p) => ({ ...p, date: e.target.value }))} />
+                  <label>Assign To</label>
+                  <select
+                    value={managerShiftDraft.assignedUserId}
+                    onChange={(e) => setManagerShiftDraft((p) => ({ ...p, assignedUserId: Number(e.target.value) }))}
+                  >
+                    {state.users.map((user) => (
+                      <option key={`u-${user.userId}`} value={user.userId}>
+                        {user.name} ({user.role})
+                      </option>
+                    ))}
+                  </select>
+                  <label>Start</label>
+                  <TimeField12h
+                    value={managerShiftDraft.startTime}
+                    onChange={(v) => setManagerShiftDraft((p) => ({ ...p, startTime: v }))}
+                  />
+                  <label>End</label>
+                  <TimeField12h
+                    value={managerShiftDraft.endTime}
+                    onChange={(v) => setManagerShiftDraft((p) => ({ ...p, endTime: v }))}
+                  />
+                  <button onClick={handleAddManagerShift}>addShift()</button>
+                </div>
+              </div>
+
+              <div className="card">
+                <label className="toggle">
+                  <input
+                    type="checkbox"
+                    checked={state.aiHandsOffMode}
+                    onChange={() => setState((prev) => ({ ...prev, aiHandsOffMode: !prev.aiHandsOffMode }))}
+                  />
+                  AI Hands-Off Mode
+                </label>
+                <p>Auto-create shifts by required roles and time slots.</p>
+                {state.aiHandsOffMode ? (
+                  <div className="actions">
+                    <input type="date" value={aiDate} onChange={(e) => setAiDate(e.target.value)} />
+                    <button onClick={handleGenerateAI}>Generate AI Schedule</button>
+                  </div>
+                ) : null}
+                {aiDate ? (
+                  <p>
+                    {getDailyOperationalStatus(state, aiDate).canOperate
+                      ? "AI day coverage: operational"
+                      : `AI day coverage: ${getDailyOperationalStatus(state, aiDate).message}`}
+                  </p>
+                ) : null}
+              </div>
+            </div>
+          </article>
+        )}
+
+        {isManager && (
+          <article className="panel">
             <h2>Notifications</h2>
             <div className="list">
               {myNotifications.length === 0 ? <p>No notifications yet.</p> : null}
@@ -670,61 +732,6 @@ function App() {
                   />
                 </div>
                 <button onClick={handleSaveBusinessSettings}>Save for this date</button>
-              </div>
-
-              <div className="card">
-                <p><strong>Manager Shift Builder</strong></p>
-                <div className="actions">
-                  <label>Date</label>
-                  <input type="date" value={managerShiftDraft.date} onChange={(e) => setManagerShiftDraft((p) => ({ ...p, date: e.target.value }))} />
-                  <label>Assign To</label>
-                  <select
-                    value={managerShiftDraft.assignedUserId}
-                    onChange={(e) => setManagerShiftDraft((p) => ({ ...p, assignedUserId: Number(e.target.value) }))}
-                  >
-                    {state.users.map((user) => (
-                      <option key={`u-${user.userId}`} value={user.userId}>
-                        {user.name} ({user.role})
-                      </option>
-                    ))}
-                  </select>
-                  <label>Start</label>
-                  <TimeField12h
-                    value={managerShiftDraft.startTime}
-                    onChange={(v) => setManagerShiftDraft((p) => ({ ...p, startTime: v }))}
-                  />
-                  <label>End</label>
-                  <TimeField12h
-                    value={managerShiftDraft.endTime}
-                    onChange={(v) => setManagerShiftDraft((p) => ({ ...p, endTime: v }))}
-                  />
-                  <button onClick={handleAddManagerShift}>addShift()</button>
-                </div>
-              </div>
-
-              <div className="card">
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={state.aiHandsOffMode}
-                    onChange={() => setState((prev) => ({ ...prev, aiHandsOffMode: !prev.aiHandsOffMode }))}
-                  />
-                  AI Hands-Off Mode
-                </label>
-                <p>Auto-create shifts by required roles and time slots.</p>
-                {state.aiHandsOffMode ? (
-                  <div className="actions">
-                    <input type="date" value={aiDate} onChange={(e) => setAiDate(e.target.value)} />
-                    <button onClick={handleGenerateAI}>Generate AI Schedule</button>
-                  </div>
-                ) : null}
-                {aiDate ? (
-                  <p>
-                    {getDailyOperationalStatus(state, aiDate).canOperate
-                      ? "AI day coverage: operational"
-                      : `AI day coverage: ${getDailyOperationalStatus(state, aiDate).message}`}
-                  </p>
-                ) : null}
               </div>
 
               <div className="card">
