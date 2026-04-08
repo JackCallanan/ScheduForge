@@ -441,7 +441,7 @@ function App() {
                     <p>
                       <strong>{shift.date}</strong> {formatTimeRange12h(shift.startTime, shift.endTime)}
                     </p>
-                    <p>{shift.position} at {shift.location}</p>
+                    <p>{shift.position}</p>
                     <p>Assigned By: {assignedBy}</p>
                     <p>Assigned To: {assignedTo}</p>
                     {isManager ? (
@@ -486,7 +486,7 @@ function App() {
                   <strong>{row.shift!.date}</strong>{" "}
                   {formatTimeRange12h(row.shift!.startTime, row.shift!.endTime)}
                 </p>
-                <p>{row.shift!.position} at {row.shift!.location}</p>
+                <p>{row.shift!.position}</p>
                 <p>Assigned By: {assignedBy}</p>
                 <p>Assigned To: {assignedTo}</p>
                 <p>Posted by: {row.postedBy!.name}</p>

@@ -46,6 +46,12 @@ export const registerUser = (
     return { state, error: "All sign up fields are required." };
   }
 
+  // Validate email format
+  const emailRegex = /^\S+@\S+\.\S+$/;
+  if (!emailRegex.test(input.email.trim())) {
+    return { state, error: "Please enter a valid email address." };
+  }
+
   const existing = state.users.find((item) => item.email.toLowerCase() === normalizedEmail);
   if (existing) {
     return { state, error: "An account with this email already exists." };

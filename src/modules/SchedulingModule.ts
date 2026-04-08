@@ -394,21 +394,28 @@ export const generateAIHandsOffSchedule = (
 
   let nextState = state;
 
-  // Intelligent shift assignment with longer blocks
-  const assignShiftsToBlocks = (
+  // Improved shift assignment that ensures coverage first, then combines consecutive shifts
+  const assignShiftsEfficiently = (
     users: Array<{ userId: number; role: 'Manager' | 'Employee' }>,
     minPerBlock: number,
     positionPrefix: string
   ) => {
-    // Calculate how many users we need per block
+    // Step 1: Assign individual shifts to meet minimum coverage requirements
     const usersPerBlock = Math.max(1, Math.min(users.length, minPerBlock));
 
     for (const block of shiftBlocks) {
       // Shuffle users for variety
       const shuffledUsers = [...users].sort(() => Math.random() - 0.5);
 
-      // Assign users to this block
-      for (let i = 0; i < usersPerBlock && i < shuffledUsers.length; i++) {
+      // Count current coverage for this block
+      let currentCoverage = nextState.shifts.filter(shift =>
+        shift.date === date &&
+        overlaps(shift.startTime, shift.endTime, block.startTime, block.endTime) &&
+        users.some(u => u.userId === shift.assignedUserId)
+      ).length;
+
+      // Assign additional users to meet minimum requirements
+      for (let i = 0; i < usersPerBlock && currentCoverage < minPerBlock; i++) {
         const user = shuffledUsers[i];
 
         // Check for conflicts
@@ -428,8 +435,11 @@ export const generateAIHandsOffSchedule = (
             assignedUserId: user.userId,
           });
 
-          if (created.error) {
-            // Try to find another user for this slot
+          if (!created.error) {
+            nextState = created.state;
+            currentCoverage++;
+          } else {
+            // Try fallback users
             for (const fallbackUser of users) {
               if (fallbackUser.userId === user.userId) continue;
 
@@ -450,26 +460,129 @@ export const generateAIHandsOffSchedule = (
                 });
 
                 if (!fallbackCreated.error) {
-                  nextState = fallbackCreated.state;
+                  nextState = created.state;
+                  currentCoverage++;
                   break;
                 }
               }
             }
-          } else {
-            nextState = created.state;
           }
         }
       }
     }
+
+    // Step 2: Combine consecutive shifts for the same user to create longer shifts
+    const combineConsecutiveShifts = () => {
+      // Group shifts by user for this date
+      const userShifts = new Map<number, Array<{ shiftId: number; startTime: string; endTime: string; position: string }>>();
+
+      nextState.shifts
+        .filter(shift => shift.date === date && users.some(u => u.userId === shift.assignedUserId))
+        .forEach(shift => {
+          if (!userShifts.has(shift.assignedUserId)) {
+            userShifts.set(shift.assignedUserId, []);
+          }
+          userShifts.get(shift.assignedUserId)!.push({
+            shiftId: shift.shiftId,
+            startTime: shift.startTime,
+            endTime: shift.endTime,
+            position: shift.position
+          });
+        });
+
+      // For each user, look for consecutive shifts to combine
+      for (const [userId, shifts] of userShifts) {
+        if (shifts.length < 2) continue;
+
+        // Sort shifts by start time
+        shifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+        // Find consecutive sequences
+        const sequences: Array<{ shifts: typeof shifts; startTime: string; endTime: string }> = [];
+
+        let currentSequence = [shifts[0]];
+
+        for (let i = 1; i < shifts.length; i++) {
+          const prevShift = shifts[i - 1];
+          const currentShift = shifts[i];
+
+          // Check if shifts are consecutive (end time of previous equals start time of current)
+          if (prevShift.endTime === currentShift.startTime) {
+            currentSequence.push(currentShift);
+          } else {
+            // End current sequence and start new one
+            if (currentSequence.length > 1) {
+              sequences.push({
+                shifts: [...currentSequence],
+                startTime: currentSequence[0].startTime,
+                endTime: currentSequence[currentSequence.length - 1].endTime
+              });
+            }
+            currentSequence = [currentShift];
+          }
+        }
+
+        // Don't forget the last sequence
+        if (currentSequence.length > 1) {
+          sequences.push({
+            shifts: [...currentSequence],
+            startTime: currentSequence[0].startTime,
+            endTime: currentSequence[currentSequence.length - 1].endTime
+          });
+        }
+
+        // Combine sequences (replace multiple shifts with one combined shift)
+        for (const sequence of sequences) {
+          // Remove individual shifts
+          const shiftsToRemove = sequence.shifts.map(s => s.shiftId);
+          nextState = {
+            ...nextState,
+            shifts: nextState.shifts.filter(shift => !shiftsToRemove.includes(shift.shiftId))
+          };
+
+          // Add combined shift
+          const created = addManagerShift(nextState, manager, {
+            date,
+            startTime: sequence.startTime,
+            endTime: sequence.endTime,
+            position: `${positionPrefix} Coverage`,
+            location: "Primary Site",
+            assignedUserId: userId,
+          });
+
+          if (!created.error) {
+            nextState = created.state;
+          } else {
+            // If combining fails, restore individual shifts
+            for (const shift of sequence.shifts) {
+              const restoreCreated = addManagerShift(nextState, manager, {
+                date,
+                startTime: shift.startTime,
+                endTime: shift.endTime,
+                position: shift.position,
+                location: "Primary Site",
+                assignedUserId: userId,
+              });
+              if (!restoreCreated.error) {
+                nextState = restoreCreated.state;
+              }
+            }
+          }
+        }
+      }
+    };
+
+    // Combine consecutive shifts
+    combineConsecutiveShifts();
   };
 
-  // Assign manager shifts to blocks
+  // Assign manager shifts efficiently
   const managerUsers = state.managers.map(m => ({ userId: m.userId, role: 'Manager' as const }));
-  assignShiftsToBlocks(managerUsers, dayRules.minimumOpeningManagers, "Manager");
+  assignShiftsEfficiently(managerUsers, dayRules.minimumOpeningManagers, "Manager");
 
-  // Assign employee shifts to blocks
+  // Assign employee shifts efficiently
   const employeeUsers = state.employees.map(e => ({ userId: e.userId, role: 'Employee' as const }));
-  assignShiftsToBlocks(employeeUsers, dayRules.minimumOpeningEmployees, "Employee");
+  assignShiftsEfficiently(employeeUsers, dayRules.minimumOpeningEmployees, "Employee");
 
   // Final verification: ensure minimum coverage requirements are met
   const slots = buildCoverageSlots(state, date); // Use original slots for verification
