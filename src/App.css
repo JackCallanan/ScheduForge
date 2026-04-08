@@ -1,7 +1,13 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
 .app {
   margin: 0 auto;
   max-width: 1120px;
-  padding: 1rem;
+  padding: 0 1rem 1rem;
 }
 
 .authPage {
@@ -21,9 +27,30 @@
 .topBar {
   display: flex;
   justify-content: space-between;
-  align-items: end;
+  align-items: center;
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin: 0 0 1rem;
+  padding: 1rem clamp(1rem, 4vw, 2rem);
+  background: #0018F9;
+  color: #fff;
+  position: relative;
+  left: 50%;
+  width: 100vw;
+  margin-left: -50vw;
+  box-sizing: border-box;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.brand img {
+  width: 100px;
+  height: 100px;
+  object-fit: contain;
+  border-radius: 8px;
 }
 
 .topBar h1 {
@@ -32,7 +59,7 @@
 
 .topBar p {
   margin-top: 0.25rem;
-  color: #555;
+  color: #dcdcff;
 }
 
 .loginPanel {
@@ -77,7 +104,7 @@
 .card {
   border: 1px solid #e6e6eb;
   border-radius: 10px;
-  padding: 0.7rem;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
@@ -85,20 +112,42 @@
 
 .actions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 0.45rem;
+  flex-direction: column;
+  gap: 16px;
   margin-top: 0.25rem;
 }
 
-.timeField12h {
-  display: inline-flex;
+.time-pair {
+  display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 12px;
 }
 
-.timeField12h__sep {
-  color: #4b5563;
-  user-select: none;
+.time-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.time-label {
+  font-size: 0.85rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.staffing-pair {
+  display: flex;
+  gap: 24px;
+}
+
+.staffing-field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.staffing-field input {
+  width: 80px;
 }
 
 button,
@@ -108,6 +157,15 @@ input {
   border-radius: 8px;
   padding: 0.5rem 0.6rem;
   font: inherit;
+}
+
+input[type="time"] {
+  width: 160px;
+}
+
+button.save-button {
+  margin-top: 8px;
+  width: 100%;
 }
 
 label {

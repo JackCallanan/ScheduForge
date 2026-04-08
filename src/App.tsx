@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
+import logo from "./images/ScheduForge Logo.png";
 import { TimeField12h } from "./components/TimeField12h";
 import { loadAppState, resetAppStateStorage, saveAppState } from "./data/localDb";
 import type { AppState, Manager, NewShiftInput, Shift, User, UserRole } from "./domain/types";
@@ -375,9 +376,11 @@ function App() {
   return (
     <main className="app">
       <header className="topBar">
-        <div>
-          <h1>ScheduForge</h1>
-          <p>Shift trading and schedule management</p>
+        <div className="brand">
+          <img src={logo} alt="ScheduForge logo" />
+          <div>
+            <h1>ScheduForge</h1>
+          </div>
         </div>
         <div className="loginPanel">
           <p>Signed in: {selectedUser.name} ({selectedUser.role})</p>
