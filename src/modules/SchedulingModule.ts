@@ -270,6 +270,23 @@ export const addManagerShift = (
   };
 };
 
+/** Keep schedules / availableShifts / shiftRequests in sync when bulk-removing shifts (e.g. AI combine step). */
+function removeShiftIdsFromState(state: AppState, shiftIds: number[]): AppState {
+  const idSet = new Set(shiftIds);
+  const availableForRemoved = state.availableShifts.filter((a) => idSet.has(a.shiftId));
+  const availableIdSet = new Set(availableForRemoved.map((a) => a.availableShiftId));
+  return {
+    ...state,
+    shifts: state.shifts.filter((s) => !idSet.has(s.shiftId)),
+    schedules: state.schedules.map((s) => ({
+      ...s,
+      shifts: s.shifts.filter((sid) => !idSet.has(sid)),
+    })),
+    availableShifts: state.availableShifts.filter((a) => !idSet.has(a.shiftId)),
+    shiftRequests: state.shiftRequests.filter((r) => !availableIdSet.has(r.availableShiftId)),
+  };
+}
+
 export const deleteShift = (
   state: AppState,
   shiftId: number,
@@ -460,7 +477,7 @@ export const generateAIHandsOffSchedule = (
                 });
 
                 if (!fallbackCreated.error) {
-                  nextState = created.state;
+                  nextState = fallbackCreated.state;
                   currentCoverage++;
                   break;
                 }
@@ -533,12 +550,9 @@ export const generateAIHandsOffSchedule = (
 
         // Combine sequences (replace multiple shifts with one combined shift)
         for (const sequence of sequences) {
-          // Remove individual shifts
-          const shiftsToRemove = sequence.shifts.map(s => s.shiftId);
-          nextState = {
-            ...nextState,
-            shifts: nextState.shifts.filter(shift => !shiftsToRemove.includes(shift.shiftId))
-          };
+          // Remove individual shifts (must update schedules[] shift id lists too, or DB FK save fails)
+          const shiftsToRemove = sequence.shifts.map((s) => s.shiftId);
+          nextState = removeShiftIdsFromState(nextState, shiftsToRemove);
 
           // Add combined shift
           const created = addManagerShift(nextState, manager, {

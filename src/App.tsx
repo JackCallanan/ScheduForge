@@ -3,6 +3,8 @@ import "./App.css";
 import logo from "./images/ScheduForge Logo.png";
 import { TimeField12h } from "./components/TimeField12h";
 import { loadAppState, resetAppStateStorage, saveAppState } from "./data/localDb";
+import { pullAppStateFromApi, pushAppStateToApi, resetMysqlDatabase } from "./data/mysqlSync";
+import { formatSaveErrorForUser } from "./data/saveErrorMessage";
 import type { AppState, Manager, NewShiftInput, Shift, User, UserRole } from "./domain/types";
 import { RequestStatus } from "./domain/types";
 import {
@@ -38,8 +40,20 @@ function assignmentLabels(state: AppState, shift: Shift): { assignedBy: string; 
   return { assignedBy, assignedTo };
 }
 
+type ThemeChoice = "light" | "dark";
+
 function App() {
   const [state, setState] = useState(loadAppState);
+  const [remoteReady, setRemoteReady] = useState(false);
+  const [theme, setTheme] = useState<ThemeChoice>(() => {
+    try {
+      const s = localStorage.getItem("scheduforge.theme");
+      if (s === "dark" || s === "light") return s;
+    } catch {
+      /* ignore */
+    }
+    return "light";
+  });
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [loggedInUserId, setLoggedInUserId] = useState<number | null>(null);
   const [loginEmail, setLoginEmail] = useState("");
@@ -51,6 +65,12 @@ function App() {
     role: "Employee" as UserRole,
   });
   const [postReasonByShiftId, setPostReasonByShiftId] = useState<Record<number, string>>({});
+  const [error, setError] = useState<string>("");
+  const [dbSyncError, setDbSyncError] = useState<string | null>(null);
+  const [managerSaveError, setManagerSaveError] = useState<{
+    text: string;
+    at: "add-shift" | "ai-schedule" | "post-coverage";
+  } | null>(null);
   const [businessRulesDate, setBusinessRulesDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [openTimeDraft, setOpenTimeDraft] = useState(state.businessOpenTime);
   const [closeTimeDraft, setCloseTimeDraft] = useState(state.businessCloseTime);
@@ -69,7 +89,71 @@ function App() {
     state.minimumOpeningEmployees,
   );
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  /** Which manager action triggered the last state change (for inline DB error placement). */
+  const lastManagerSaveContextRef = useRef<"add-shift" | "ai-schedule" | "post-coverage" | null>(null);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem("scheduforge.theme", theme);
+    } catch {
+      /* ignore */
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const remote = await pullAppStateFromApi();
+        if (cancelled) return;
+        if (remote) {
+          setState(remote);
+          saveAppState(remote);
+        }
+      } finally {
+        if (!cancelled) {
+          setRemoteReady(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!remoteReady) return;
+    saveAppState(state);
+    const id = window.setTimeout(() => {
+      void pushAppStateToApi(state).then((r) => {
+        if (r.ok) {
+          setDbSyncError(null);
+          setManagerSaveError(null);
+          lastManagerSaveContextRef.current = null;
+          return;
+        }
+        const raw = r.detail ?? r.message;
+        const { userMessage, isDuplicate } = formatSaveErrorForUser(raw);
+        const anchor = lastManagerSaveContextRef.current;
+        const role = state.users.find((u) => u.userId === loggedInUserId)?.role;
+        const showInline = isDuplicate && role === "Manager" && anchor != null;
+        if (showInline) {
+          setManagerSaveError({ text: userMessage, at: anchor });
+          setDbSyncError(null);
+        } else {
+          setDbSyncError(userMessage);
+          setManagerSaveError(null);
+        }
+        lastManagerSaveContextRef.current = null;
+      });
+    }, 450);
+    return () => window.clearTimeout(id);
+  }, [state, remoteReady, loggedInUserId]);
 
   useEffect(() => {
     setBaselineOpenDraft(state.businessOpenTime);
@@ -108,11 +192,6 @@ function App() {
     location: "",
     assignedUserId: 2,
   });
-  const [error, setError] = useState<string>("");
-
-  useEffect(() => {
-    saveAppState(state);
-  }, [state]);
 
   const selectedUser = state.users.find((item) => item.userId === loggedInUserId) as User | undefined;
   const isManager = selectedUser?.role === "Manager";
@@ -185,6 +264,15 @@ function App() {
       return;
     }
     setState(result.state);
+    void pushAppStateToApi(result.state).then((r) => {
+      if (r.ok) {
+        setDbSyncError(null);
+        setManagerSaveError(null);
+      } else {
+        const raw = r.detail ?? r.message;
+        setDbSyncError(formatSaveErrorForUser(raw).userMessage);
+      }
+    });
     setLoggedInUserId(result.user.userId);
     setSignupForm({
       name: "",
@@ -203,7 +291,8 @@ function App() {
     setError("");
   };
 
-  const handleResetDatabase = () => {
+  const handleResetDatabase = async () => {
+    await resetMysqlDatabase();
     resetAppStateStorage();
     window.location.reload();
   };
@@ -215,6 +304,9 @@ function App() {
     if (result.error) {
       setError(result.error);
       return;
+    }
+    if (selectedUser.role === "Manager") {
+      lastManagerSaveContextRef.current = "post-coverage";
     }
     setState(result.state);
     setError("");
@@ -310,6 +402,7 @@ function App() {
       setError(result.error);
       return;
     }
+    lastManagerSaveContextRef.current = "add-shift";
     setState(result.state);
     setError("");
   };
@@ -322,6 +415,7 @@ function App() {
       setError(result.error);
       return;
     }
+    lastManagerSaveContextRef.current = "ai-schedule";
     setState(result.state);
     setError("");
   };
@@ -333,6 +427,7 @@ function App() {
           <h1>ScheduForge Login</h1>
           <p>Create an account or sign in.</p>
           {error ? <p className="error">{error}</p> : null}
+          {dbSyncError ? <p className="error">{dbSyncError}</p> : null}
           <div className="actions">
             <button className={authMode === "login" ? "" : "ghost"} onClick={() => setAuthMode("login")}>
               Log In
@@ -365,7 +460,10 @@ function App() {
               <button onClick={handleSignUp}>Create Account</button>
             </>
           )}
-          <button className="ghost" onClick={handleResetDatabase}>
+          <button className="ghost" type="button" onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}>
+            {theme === "light" ? "Dark mode" : "Light mode"}
+          </button>
+          <button className="ghost" type="button" onClick={() => void handleResetDatabase()}>
             Reset Database
           </button>
         </section>
@@ -380,15 +478,29 @@ function App() {
           <img src={logo} alt="ScheduForge logo" />
           <div>
             <h1>ScheduForge</h1>
+            <p className="topBar-tagline">Shift scheduling, simplified</p>
           </div>
         </div>
         <div className="loginPanel">
           <p>Signed in: {selectedUser.name} ({selectedUser.role})</p>
-          <button className="ghost" onClick={handleLogout}>Log Out</button>
+          <div className="topBar-actions">
+            <button
+              type="button"
+              className="ghost themeToggle"
+              onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
+              aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
+            >
+              {theme === "light" ? "◐" : "◑"}
+            </button>
+            <button type="button" className="ghost" onClick={handleLogout}>
+              Log Out
+            </button>
+          </div>
         </div>
       </header>
 
       {error ? <p className="error">{error}</p> : null}
+      {dbSyncError ? <p className="error">{dbSyncError}</p> : null}
 
       <section className="grid">
         <article className="panel">
@@ -420,13 +532,11 @@ function App() {
                 </button>
                 {managerShiftViewDate && (
                   <span
-                    style={{
-                      marginLeft: "1rem",
-                      color: getDailyOperationalStatus(state, managerShiftViewDate).canOperate
-                        ? "#15803d"
-                        : "#b91c1c",
-                      fontWeight: "bold",
-                    }}
+                    className={
+                      getDailyOperationalStatus(state, managerShiftViewDate).canOperate
+                        ? "sf-status sf-status--ok"
+                        : "sf-status sf-status--bad"
+                    }
                   >
                     {getDailyOperationalStatus(state, managerShiftViewDate).canOperate
                       ? "✓ Operational"
@@ -512,6 +622,11 @@ function App() {
         {isManager && (
           <article className="panel">
             <h2>My Shifts</h2>
+            {managerSaveError?.at === "post-coverage" ? (
+              <p className="error inline-save-error" role="alert">
+                {managerSaveError.text}
+              </p>
+            ) : null}
             <div className="list-scroll--shifts">
               <div className="card">
                 <label>View shifts for date (optional)</label>
@@ -578,6 +693,11 @@ function App() {
                   />
                   <button onClick={handleAddManagerShift}>addShift()</button>
                 </div>
+                {managerSaveError?.at === "add-shift" ? (
+                  <p className="error inline-save-error" role="alert">
+                    {managerSaveError.text}
+                  </p>
+                ) : null}
               </div>
 
               <div className="card">
@@ -596,6 +716,11 @@ function App() {
                     <button onClick={handleGenerateAI}>Generate AI Schedule</button>
                   </div>
                 ) : null}
+                {managerSaveError?.at === "ai-schedule" ? (
+                  <p className="error inline-save-error" role="alert">
+                    {managerSaveError.text}
+                  </p>
+                ) : null}
               </div>
 
               <div className="card">
@@ -609,11 +734,11 @@ function App() {
                 </div>
                 {operationsCheckDate ? (
                   <p
-                    style={{
-                      color: getDailyOperationalStatus(state, operationsCheckDate).canOperate
-                        ? "#15803d"
-                        : "#b91c1c",
-                    }}
+                    className={
+                      getDailyOperationalStatus(state, operationsCheckDate).canOperate
+                        ? "sf-status sf-status--ok"
+                        : "sf-status sf-status--bad"
+                    }
                   >
                     {getDailyOperationalStatus(state, operationsCheckDate).message}
                   </p>
