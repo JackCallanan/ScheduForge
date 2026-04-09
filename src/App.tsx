@@ -429,12 +429,10 @@ function App() {
           {error ? <p className="error">{error}</p> : null}
           {dbSyncError ? <p className="error">{dbSyncError}</p> : null}
           <div className="actions">
-            <button className={authMode === "login" ? "" : "ghost"} onClick={() => setAuthMode("login")}>
-              Log In
-            </button>
-            <button className={authMode === "signup" ? "" : "ghost"} onClick={() => setAuthMode("signup")}>
-              Sign Up
-            </button>
+            <select value={authMode} onChange={(e) => setAuthMode(e.target.value as AuthMode)}>
+              <option value="login">Log In</option>
+              <option value="signup">Sign Up</option>
+            </select>
           </div>
           {authMode === "login" ? (
             <>
@@ -577,7 +575,7 @@ function App() {
                             setPostReasonByShiftId((prev) => ({ ...prev, [shift.shiftId]: event.target.value }))
                           }
                         />
-                        <button onClick={() => handlePostShift(shift.shiftId)}>postShift()</button>
+                        <button onClick={() => handlePostShift(shift.shiftId)}>Post Shift</button>
                       </div>
                     ) : null}
                   </div>
@@ -606,7 +604,7 @@ function App() {
                 <p>Reason: {row.availableShift.reason}</p>
                 {row.postedBy!.userId !== selectedUser.userId ? (
                   <button onClick={() => handleRequestToCover(row.availableShift.availableShiftId)}>
-                    requestToCover()
+                    Request to Cover
                   </button>
                 ) : (
                   <button className="ghost" onClick={() => handleUnpostShift(row.availableShift.availableShiftId)}>
@@ -691,7 +689,7 @@ function App() {
                     value={managerShiftDraft.endTime}
                     onChange={(v) => setManagerShiftDraft((p) => ({ ...p, endTime: v }))}
                   />
-                  <button onClick={handleAddManagerShift}>addShift()</button>
+                  <button onClick={handleAddManagerShift}>Add Shift</button>
                 </div>
                 {managerSaveError?.at === "add-shift" ? (
                   <p className="error inline-save-error" role="alert">
@@ -701,21 +699,12 @@ function App() {
               </div>
 
               <div className="card">
-                <label className="toggle">
-                  <input
-                    type="checkbox"
-                    checked={state.aiHandsOffMode}
-                    onChange={() => setState((prev) => ({ ...prev, aiHandsOffMode: !prev.aiHandsOffMode }))}
-                  />
-                  AI Hands-Off Mode
-                </label>
+                <p><strong>AI Hands-Off Mode</strong></p>
                 <p>Auto-create shifts by required roles and time slots.</p>
-                {state.aiHandsOffMode ? (
-                  <div className="actions">
-                    <input type="date" value={aiDate} onChange={(e) => setAiDate(e.target.value)} />
-                    <button onClick={handleGenerateAI}>Generate AI Schedule</button>
-                  </div>
-                ) : null}
+                <div className="actions">
+                  <input type="date" value={aiDate} onChange={(e) => setAiDate(e.target.value)} />
+                  <button onClick={handleGenerateAI}>Generate AI Schedule</button>
+                </div>
                 {managerSaveError?.at === "ai-schedule" ? (
                   <p className="error inline-save-error" role="alert">
                     {managerSaveError.text}
@@ -783,8 +772,8 @@ function App() {
                     <p>Assigned To: {assignedTo}</p>
                     <p>Requested by {row.requester!.name} to cover {row.poster!.name}</p>
                     <div className="actions">
-                      <button onClick={() => handleReviewRequest(row.request.requestID, RequestStatus.APPROVED)}>approve()</button>
-                      <button className="ghost" onClick={() => handleReviewRequest(row.request.requestID, RequestStatus.DENIED)}>deny()</button>
+                      <button onClick={() => handleReviewRequest(row.request.requestID, RequestStatus.APPROVED)}>Approve</button>
+                      <button className="ghost" onClick={() => handleReviewRequest(row.request.requestID, RequestStatus.DENIED)}>Deny</button>
                     </div>
                   </div>
                 );
@@ -893,10 +882,6 @@ function App() {
                 </div>
                 <button onClick={handleSaveBusinessSettings}>Save for this date</button>
               </div>
-
-              <p>Total schedules: {state.schedules.length}</p>
-              <p>Published schedules: {state.schedules.filter((item) => isPublished(item)).length}</p>
-              <p>Reviewed requests: {getReviewedRequests(state, selectedUser.userId).length}</p>
             </div>
           ) : (
             <div className="list">
