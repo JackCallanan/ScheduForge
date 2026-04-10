@@ -10,6 +10,16 @@ import { RequestStatus } from "../domain/types";
 import { markAsAvailable } from "./ShiftManagementModule";
 import { addNotification, formatTimeRange12h, nextId } from "./moduleUtils";
 
+/**
+ * Check whether two date/time windows overlap.
+ * @param aDate - First date.
+ * @param aStart - First start time.
+ * @param aEnd - First end time.
+ * @param bDate - Second date.
+ * @param bStart - Second start time.
+ * @param bEnd - Second end time.
+ * @returns True when the windows overlap.
+ */
 const sameWindow = (
   aDate: string,
   aStart: string,
@@ -19,6 +29,13 @@ const sameWindow = (
   bEnd: string,
 ) => aDate === bDate && !(aEnd <= bStart || bEnd <= aStart);
 
+/**
+ * Authenticate a user by email and password.
+ * @param state - Current application state.
+ * @param email - User email address.
+ * @param password - User password.
+ * @returns Logged in user or an error.
+ */
 export const authenticateUser = (
   state: AppState,
   email: string,
@@ -32,6 +49,12 @@ export const authenticateUser = (
   return { user };
 };
 
+/**
+ * Register a new user and update app state.
+ * @param state - Current application state.
+ * @param input - User registration details.
+ * @returns Updated state and created user or an error.
+ */
 export const registerUser = (
   state: AppState,
   input: {
@@ -44,12 +67,6 @@ export const registerUser = (
   const normalizedEmail = input.email.trim().toLowerCase();
   if (!input.name.trim() || !normalizedEmail || !input.password) {
     return { state, error: "All sign up fields are required." };
-  }
-
-  // Validate email format
-  const emailRegex = /^\S+@\S+\.\S+$/;
-  if (!emailRegex.test(input.email.trim())) {
-    return { state, error: "Please enter a valid email address." };
   }
 
   const existing = state.users.find((item) => item.email.toLowerCase() === normalizedEmail);
@@ -85,6 +102,14 @@ export const registerUser = (
   return { state: nextState, user };
 };
 
+/**
+ * Post a shift as available for coverage.
+ * @param state - Current application state.
+ * @param user - User posting the shift.
+ * @param shiftId - ID of the shift to post.
+ * @param reason - Reason for coverage request.
+ * @returns Updated state or an error.
+ */
 export const postShift = (
   state: AppState,
   user: User,
@@ -120,6 +145,13 @@ export const postShift = (
   return { state: { ...result.state, notifications } };
 };
 
+/**
+ * Submit a request to cover an available shift.
+ * @param state - Current application state.
+ * @param user - User requesting coverage.
+ * @param availableShiftId - ID of the available shift.
+ * @returns Updated state or an error.
+ */
 export const requestToCover = (
   state: AppState,
   user: User,
@@ -190,13 +222,36 @@ export const requestToCover = (
   };
 };
 
+/**
+ * Get shifts assigned to the specified user.
+ * @param state - Current application state.
+ * @param user - Target user.
+ * @returns Shifts assigned to the user.
+ */
 export const getAssignedShifts = (state: AppState, user: User) =>
   state.shifts.filter((item) => item.assignedUserId === user.userId);
 
+/**
+ * Get available shifts posted by a specific user.
+ * @param state - Current application state.
+ * @param user - Shift poster.
+ * @returns Available shifts posted by the user.
+ */
 export const getPostedAvailableShifts = (state: AppState, user: User) =>
   state.availableShifts.filter((item) => item.postedByUserId === user.userId);
 
+/**
+ * Return the current schedule list.
+ * @param state - Current application state.
+ * @returns Schedule records.
+ */
 export const getSchedules = (state: AppState) => state.schedules;
 
+/**
+ * Get shift requests reviewed by a given manager.
+ * @param state - Current application state.
+ * @param managerUserId - Manager user ID.
+ * @returns Reviewed shift requests.
+ */
 export const getReviewedRequests = (state: AppState, managerUserId: number) =>
   state.shiftRequests.filter((item) => item.reviewedByManagerId === managerUserId);

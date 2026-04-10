@@ -9,6 +9,13 @@ import type {
 import { RequestStatus as RequestStatusEnum } from "../domain/types";
 import { addNotification } from "./moduleUtils";
 
+/**
+ * Approve a shift coverage request and assign the requester.
+ * @param state - Current application state.
+ * @param request - Shift request to approve.
+ * @param managerId - Manager performing approval.
+ * @returns Updated state or error.
+ */
 export const approve = (
   state: AppState,
   request: ShiftRequest,
@@ -44,6 +51,13 @@ export const approve = (
   return { state: nextState };
 };
 
+/**
+ * Deny a shift coverage request.
+ * @param state - Current application state.
+ * @param request - Shift request to deny.
+ * @param managerId - Manager performing denial.
+ * @returns Updated application state.
+ */
 export const deny = (state: AppState, request: ShiftRequest, managerId: number): AppState => ({
   ...state,
   shiftRequests: state.shiftRequests.map((item) =>
@@ -53,17 +67,42 @@ export const deny = (state: AppState, request: ShiftRequest, managerId: number):
   ),
 });
 
+/**
+ * Get the current status of a shift request.
+ * @param request - Shift request object.
+ * @returns Request status.
+ */
 export const getStatus = (request: ShiftRequest): RequestStatus => request.status;
 
+/**
+ * Resolve the employee who requested a shift.
+ * @param state - Current application state.
+ * @param request - Shift request object.
+ * @returns Requesting employee or undefined.
+ */
 export const getRequester = (state: AppState, request: ShiftRequest): Employee | undefined =>
   state.employees.find((item) => item.employeeID === request.requesterId);
 
+/**
+ * Find the available shift referenced by a request.
+ * @param state - Current application state.
+ * @param request - Shift request object.
+ * @returns Available shift or undefined.
+ */
 export const getAvailableShift = (
   state: AppState,
   request: ShiftRequest,
 ): AvailableShift | undefined =>
   state.availableShifts.find((item) => item.availableShiftId === request.availableShiftId);
 
+/**
+ * Review a pending shift coverage request.
+ * @param state - Current application state.
+ * @param requestID - ID of the request.
+ * @param managerId - Manager reviewing the request.
+ * @param decision - Approval or denial.
+ * @returns Updated state or error.
+ */
 export const reviewRequest = (
   state: AppState,
   requestID: number,

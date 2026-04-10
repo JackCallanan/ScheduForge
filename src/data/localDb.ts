@@ -3,6 +3,10 @@ import type { AppState } from "../domain/types";
 
 const STORAGE_KEY = "scheduforge.appState.v1";
 
+/**
+ * Load the application state from localStorage.
+ * @returns Stored AppState or the initial state on failure.
+ */
 export const loadAppState = (): AppState => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -29,10 +33,17 @@ export const loadAppState = (): AppState => {
   }
 };
 
+/**
+ * Persist the application state to localStorage.
+ * @param state - AppState to save.
+ */
 export const saveAppState = (state: AppState) => {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 };
 
+/**
+ * Remove the stored application state from localStorage.
+ */
 export const resetAppStateStorage = () => {
   localStorage.removeItem(STORAGE_KEY);
 };

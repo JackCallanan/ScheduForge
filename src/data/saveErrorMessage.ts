@@ -2,6 +2,11 @@
  * Turn raw API / MySQL save errors into short UI copy.
  * Duplicate key (1062 / "Duplicate entry") is common when IDs collide during concurrent saves.
  */
+/**
+ * Format a raw save error message for display to users.
+ * @param raw - Raw error text from persistence.
+ * @returns User-facing message and duplicate status.
+ */
 export function formatSaveErrorForUser(raw: string): { userMessage: string; isDuplicate: boolean } {
   const lower = raw.toLowerCase();
 

@@ -3,6 +3,10 @@ import type { AppState } from "../domain/types";
 const stateUrl = "/api/state";
 const resetUrl = "/api/reset";
 
+/**
+ * Pull application state from the backend API.
+ * @returns AppState on success, or null on failure.
+ */
 export async function pullAppStateFromApi(): Promise<AppState | null> {
   try {
     const r = await fetch(stateUrl);
@@ -17,6 +21,11 @@ export type PushResult =
   | { ok: true }
   | { ok: false; message: string; detail?: string; status?: number };
 
+/**
+ * Push the current application state to the backend API.
+ * @param state - AppState to persist.
+ * @returns Result of the API save operation.
+ */
 export async function pushAppStateToApi(state: AppState): Promise<PushResult> {
   try {
     const r = await fetch(stateUrl, {
@@ -55,6 +64,10 @@ export async function pushAppStateToApi(state: AppState): Promise<PushResult> {
   }
 }
 
+/**
+ * Request the backend to reset the MySQL database.
+ * @returns True when the reset request succeeded.
+ */
 export async function resetMysqlDatabase(): Promise<boolean> {
   try {
     const r = await fetch(resetUrl, { method: "POST" });

@@ -23,6 +23,11 @@ interface LoginPageProps {
   setTheme: (theme: "light" | "dark") => void;
 }
 
+/**
+ * Render the login and signup page for ScheduForge.
+ * @param props - Props controlling authentication state and handlers.
+ * @returns Login page UI.
+ */
 export function LoginPage({
   authMode,
   setAuthMode,

@@ -27,6 +27,11 @@ interface EmployeePageProps {
   assignmentLabelsFunc: (state: AppState, shift: Shift) => { assignedBy: string; assignedTo: string };
 }
 
+/**
+ * Render the employee-facing schedule page.
+ * @param props - Props required to show employee schedule and actions.
+ * @returns Employee page UI.
+ */
 export function EmployeePage({
   state,
   selectedUser,

@@ -8,6 +8,12 @@ import type {
 } from "../domain/types";
 import { addNotification, calculateDurationHours, formatTime12h, nextId } from "./moduleUtils";
 
+/**
+ * Get the effective business rules for a date, falling back to global defaults.
+ * @param state - Current application state.
+ * @param date - Date string to look up daily rules.
+ * @returns Daily business rules for the selected date.
+ */
 export const getBusinessRulesForDate = (state: AppState, date: string): DailyBusinessRules => {
   const day = date ? state.dailyBusinessRules[date] : undefined;
   return {
@@ -18,6 +24,12 @@ export const getBusinessRulesForDate = (state: AppState, date: string): DailyBus
   };
 };
 
+/**
+ * Send a notification message to every user in the app state.
+ * @param state - Current application state.
+ * @param message - Notification text.
+ * @returns Updated state with notifications.
+ */
 export const notifyUsers = (state: AppState, message: string): AppState => {
   let notifications = [...state.notifications];
   state.users.forEach((user) => {
@@ -26,11 +38,32 @@ export const notifyUsers = (state: AppState, message: string): AppState => {
   return { ...state, notifications };
 };
 
+/**
+ * Check whether a schedule is marked as published.
+ * @param schedule - Schedule object.
+ * @returns True when published.
+ */
 export const isPublished = (schedule: Schedule): boolean => schedule.published;
 
+/**
+ * Determine whether two time ranges overlap.
+ * @param startA - Start of the first range.
+ * @param endA - End of the first range.
+ * @param startB - Start of the second range.
+ * @param endB - End of the second range.
+ * @returns True when the ranges overlap.
+ */
 const overlaps = (startA: string, endA: string, startB: string, endB: string) =>
   !(endA <= startB || endB <= startA);
 
+/**
+ * Check whether a shift is fully contained inside business hours.
+ * @param state - Current application state.
+ * @param date - Date of the shift.
+ * @param startTime - Shift start time.
+ * @param endTime - Shift end time.
+ * @returns True when the shift is within business hours.
+ */
 const withinBusinessHours = (
   state: AppState,
   date: string,
@@ -41,9 +74,22 @@ const withinBusinessHours = (
   return startTime >= rules.businessOpenTime && endTime <= rules.businessCloseTime;
 };
 
+/**
+ * Get the role of the assigned user from state.
+ * @param state - Current application state.
+ * @param assignedUserId - User ID assigned to the shift.
+ * @returns User role or undefined if not found.
+ */
 const getUserRoleByAssignedId = (state: AppState, assignedUserId: number) =>
   state.users.find((item) => item.userId === assignedUserId)?.role;
 
+/**
+ * Determine whether a new shift overlaps an existing shift for the same user.
+ * @param state - Current application state.
+ * @param input - New shift input.
+ * @param ignoreShiftId - Optional shift ID to ignore during overlap checks.
+ * @returns True when an overlapping shift is found.
+ */
 const hasUserOverlap = (state: AppState, input: NewShiftInput, ignoreShiftId?: number) =>
   state.shifts.some(
     (shift) =>
@@ -53,6 +99,13 @@ const hasUserOverlap = (state: AppState, input: NewShiftInput, ignoreShiftId?: n
       overlaps(shift.startTime, shift.endTime, input.startTime, input.endTime),
   );
 
+/**
+ * Find an existing daily schedule for a manager or create a fresh one.
+ * @param state - Current application state.
+ * @param manager - Manager creating or owning the schedule.
+ * @param date - Date of the schedule.
+ * @returns Existing or newly created schedule.
+ */
 const findOrCreateDailySchedule = (state: AppState, manager: Manager, date: string): Schedule => {
   const existing = state.schedules.find(
     (item) => item.managerId === manager.managerId && item.startDate === date && item.endDate === date,
@@ -68,6 +121,16 @@ const findOrCreateDailySchedule = (state: AppState, manager: Manager, date: stri
   };
 };
 
+/**
+ * Save business rules for a specific date.
+ * @param state - Current application state.
+ * @param date - Date to update.
+ * @param openTime - Opening time.
+ * @param closeTime - Closing time.
+ * @param minimumOpeningManagers - Minimum managers required.
+ * @param minimumOpeningEmployees - Minimum employees required.
+ * @returns Updated state or validation error.
+ */
 export const updateBusinessRules = (
   state: AppState,
   date: string,
@@ -99,6 +162,15 @@ export const updateBusinessRules = (
   };
 };
 
+/**
+ * Update the global baseline business hours and staffing defaults.
+ * @param state - Current application state.
+ * @param openTime - Default opening time.
+ * @param closeTime - Default closing time.
+ * @param minimumOpeningManagers - Default manager staffing.
+ * @param minimumOpeningEmployees - Default employee staffing.
+ * @returns Updated state or validation error.
+ */
 export const updateGlobalBusinessBaseline = (
   state: AppState,
   openTime: string,
@@ -123,6 +195,12 @@ export const updateGlobalBusinessBaseline = (
   };
 };
 
+/**
+ * Calculate how many managers and employees are covering opening time.
+ * @param state - Current application state.
+ * @param date - Date to evaluate.
+ * @returns Counts for managers and employees are present at opening.
+ */
 export const getOpeningCoverage = (state: AppState, date: string) => {
   const { businessOpenTime } = getBusinessRulesForDate(state, date);
   const openingShifts = state.shifts.filter(
@@ -137,6 +215,12 @@ export const getOpeningCoverage = (state: AppState, date: string) => {
   return { managerCount, employeeCount };
 };
 
+/**
+ * Build hourly coverage slots between open and close times.
+ * @param state - Current application state.
+ * @param date - Date to evaluate.
+ * @returns Array of coverage slots.
+ */
 const buildCoverageSlots = (state: AppState, date: string) => {
   const { businessOpenTime, businessCloseTime } = getBusinessRulesForDate(state, date);
   const slots: Array<{ startTime: string; endTime: string }> = [];
@@ -155,6 +239,14 @@ const buildCoverageSlots = (state: AppState, date: string) => {
   return slots;
 };
 
+/**
+ * Count coverage for a time slot on a given date.
+ * @param state - Current application state.
+ * @param date - Date of coverage.
+ * @param startTime - Slot start time.
+ * @param endTime - Slot end time.
+ * @returns Manager and employee counts for the slot.
+ */
 const getCoverageForSlot = (
   state: AppState,
   date: string,
@@ -176,6 +268,12 @@ const getCoverageForSlot = (
   return { managerCount, employeeCount };
 };
 
+/**
+ * Determine whether the schedule meets the minimum operational coverage for a date.
+ * @param state - Current application state.
+ * @param date - Date to validate.
+ * @returns Operation status and message.
+ */
 export const getDailyOperationalStatus = (state: AppState, date: string) => {
   if (!date) {
     return { canOperate: false, message: "Select a date to evaluate operations." };
@@ -221,6 +319,13 @@ export const getDailyOperationalStatus = (state: AppState, date: string) => {
   };
 };
 
+/**
+ * Add a manager-created shift to the application state.
+ * @param state - Current application state.
+ * @param manager - Manager creating the shift.
+ * @param input - Shift details.
+ * @returns Updated state or validation error.
+ */
 export const addManagerShift = (
   state: AppState,
   manager: Manager,
@@ -270,7 +375,12 @@ export const addManagerShift = (
   };
 };
 
-/** Keep schedules / availableShifts / shiftRequests in sync when bulk-removing shifts (e.g. AI combine step). */
+/**
+ * Remove shifts and their related records from state.
+ * @param state - Current application state.
+ * @param shiftIds - IDs of shifts to remove.
+ * @returns Updated state without the removed shifts.
+ */
 function removeShiftIdsFromState(state: AppState, shiftIds: number[]): AppState {
   const idSet = new Set(shiftIds);
   const availableForRemoved = state.availableShifts.filter((a) => idSet.has(a.shiftId));
@@ -287,6 +397,12 @@ function removeShiftIdsFromState(state: AppState, shiftIds: number[]): AppState 
   };
 }
 
+/**
+ * Delete a shift and related available shift/request records.
+ * @param state - Current application state.
+ * @param shiftId - ID of the shift to remove.
+ * @returns Updated state or error.
+ */
 export const deleteShift = (
   state: AppState,
   shiftId: number,
@@ -331,6 +447,13 @@ export const deleteShift = (
   };
 };
 
+/**
+ * Create a schedule by adding a list of planned shifts.
+ * @param state - Current application state.
+ * @param manager - Manager creating the schedule.
+ * @param plannedShifts - Array of shift inputs.
+ * @returns Updated state or error.
+ */
 export const createSchedule = (
   state: AppState,
   manager: Manager,
@@ -346,6 +469,13 @@ export const createSchedule = (
   return { state: nextState };
 };
 
+/**
+ * Generate a hands-off AI schedule for the chosen date.
+ * @param state - Current application state.
+ * @param manager - Manager requesting AI scheduling.
+ * @param date - Date for the schedule.
+ * @returns Updated state or error.
+ */
 export const generateAIHandsOffSchedule = (
   state: AppState,
   manager: Manager,

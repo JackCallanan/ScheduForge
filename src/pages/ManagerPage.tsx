@@ -71,6 +71,11 @@ interface ManagerPageProps {
   assignmentLabelsFunc: (state: AppState, shift: Shift) => { assignedBy: string; assignedTo: string };
 }
 
+/**
+ * Render the manager page with scheduling controls and approvals.
+ * @param props - Props used by the manager page.
+ * @returns Manager page UI.
+ */
 export function ManagerPage({
   state,
   selectedUser,

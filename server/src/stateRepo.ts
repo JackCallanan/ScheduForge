@@ -3,12 +3,22 @@ import { joinDisplayName, splitDisplayName } from "./nameUtils.js";
 import { pool } from "./db.js";
 import type { AppState } from "./types.js";
 
+/**
+ * Convert a date-like value to YYYY-MM-DD.
+ * @param v - Value to convert.
+ * @returns Date-only string.
+ */
 function toDateOnly(v: unknown): string {
   if (v instanceof Date) return v.toISOString().slice(0, 10);
   const s = String(v);
   return s.length >= 10 ? s.slice(0, 10) : s;
 }
 
+/**
+ * Normalize a database time value to HH:MM.
+ * @param v - Value from the database.
+ * @returns Time string in HH:MM format.
+ */
 function toTimeHm(v: unknown): string {
   if (v == null) return "00:00";
   const s = String(v);
@@ -16,7 +26,11 @@ function toTimeHm(v: unknown): string {
   return s;
 }
 
-/** HH:MM or HH:MM:SS -> HH:MM:SS for MySQL TIME (avoids double :00 like 08:00:00:00). */
+/**
+ * Convert a time string into MySQL TIME format.
+ * @param h - Input time string.
+ * @returns MySQL TIME string.
+ */
 function toMysqlTime(h: string | undefined): string {
   const t = (h ?? "00:00").trim();
   if (/^\d{2}:\d{2}:\d{2}$/.test(t)) return t;
@@ -27,6 +41,11 @@ function toMysqlTime(h: string | undefined): string {
   return "00:00:00";
 }
 
+/**
+ * Convert an ISO datetime string into MySQL DATETIME format.
+ * @param iso - ISO-formatted datetime.
+ * @returns MySQL DATETIME string.
+ */
 function toMysqlDateTime(iso: string): string {
   const d = new Date(iso);
   if (!Number.isNaN(d.getTime())) {
@@ -35,11 +54,19 @@ function toMysqlDateTime(iso: string): string {
   return iso.trim().replace("T", " ").replace(/\.\d{3}Z?$/, "").slice(0, 26);
 }
 
+/**
+ * Check whether the MySQL database contains any seeded employee rows.
+ * @returns True when the database is empty.
+ */
 export async function isDatabaseEmpty(): Promise<boolean> {
   const [rows] = await pool.query<RowDataPacket[]>("SELECT COUNT(*) AS c FROM employees");
   return Number(rows[0]?.c ?? 0) === 0;
 }
 
+/**
+ * Load the full application state from the database.
+ * @returns Application state object.
+ */
 export async function loadAppState(): Promise<AppState> {
   const [empRows] = await pool.query<
     RowDataPacket[]
@@ -197,6 +224,10 @@ export async function loadAppState(): Promise<AppState> {
   };
 }
 
+/**
+ * Replace the current database state with the provided AppState.
+ * @param state - Application state to persist.
+ */
 export async function replaceAppState(state: AppState): Promise<void> {
   const conn = await pool.getConnection();
   try {
@@ -323,6 +354,10 @@ export async function replaceAppState(state: AppState): Promise<void> {
   }
 }
 
+/**
+ * Ensure the database contains the seed state.
+ * @param seed - Seed application state.
+ */
 export async function ensureSeeded(seed: AppState): Promise<void> {
   if (await isDatabaseEmpty()) {
     await replaceAppState(seed);

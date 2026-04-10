@@ -29,6 +29,12 @@ import { ManagerPage } from "./pages/ManagerPage";
 
 type AuthMode = "login" | "signup";
 
+/**
+ * Get labels for who assigned and who is assigned to a shift.
+ * @param state - Current application state.
+ * @param shift - Shift object.
+ * @returns Assigned-by and assigned-to labels.
+ */
 function assignmentLabels(state: AppState, shift: Shift): { assignedBy: string; assignedTo: string } {
   const assignedTo = state.users.find((u) => u.userId === shift.assignedUserId)?.name ?? "—";
   const assignedBy =
@@ -40,6 +46,10 @@ function assignmentLabels(state: AppState, shift: Shift): { assignedBy: string; 
 
 type ThemeChoice = "light" | "dark";
 
+/**
+ * Main ScheduForge application root component.
+ * @returns The full app UI.
+ */
 function App() {
   const [state, setState] = useState(loadAppState);
   const [remoteReady, setRemoteReady] = useState(false);
@@ -244,6 +254,10 @@ function App() {
     })
     .filter((row) => row.shift && row.requester && row.poster);
 
+  /**
+   * Authenticate a user with email and password.
+   * Sets the logged-in user on success or shows an error.
+   */
   const handleLogin = () => {
     const result = authenticateUser(state, loginEmail, loginPassword);
     if (result.error || !result.user) {
@@ -255,6 +269,10 @@ function App() {
     setError("");
   };
 
+  /**
+   * Register a new user and persist state to the backend.
+   * Clears the signup form and switches back to login mode.
+   */
   const handleSignUp = () => {
     const result = registerUser(state, signupForm);
     if (result.error || !result.user) {
@@ -282,6 +300,9 @@ function App() {
     setError("");
   };
 
+  /**
+   * Clear login state and reset credentials.
+   */
   const handleLogout = () => {
     setLoggedInUserId(null);
     setLoginEmail("");
@@ -289,12 +310,19 @@ function App() {
     setError("");
   };
 
+  /**
+   * Reset the MySQL database on the backend and reload the app.
+   */
   const handleResetDatabase = async () => {
     await resetMysqlDatabase();
     resetAppStateStorage();
     window.location.reload();
   };
 
+  /**
+   * Post a shift as available for coverage.
+   * @param shiftId - ID of the shift to post.
+   */
   const handlePostShift = (shiftId: number) => {
     if (!selectedUser) return;
     const reason = postReasonByShiftId[shiftId] ?? "";
@@ -311,6 +339,10 @@ function App() {
     setPostReasonByShiftId((prev) => ({ ...prev, [shiftId]: "" }));
   };
 
+  /**
+   * Request coverage for an available shift.
+   * @param availableShiftId - ID of the available shift to request.
+   */
   const handleRequestToCover = (availableShiftId: number) => {
     if (!selectedUser) return;
     const result = requestToCover(state, selectedUser, availableShiftId);
@@ -322,12 +354,21 @@ function App() {
     setError("");
   };
 
+  /**
+   * Close an available shift and mark it as no longer posted.
+   * @param availableShiftId - ID of the available shift to close.
+   */
   const handleUnpostShift = (availableShiftId: number) => {
     const newState = close(state, availableShiftId);
     setState(newState);
     setError("");
   };
 
+  /**
+   * Review a shift coverage request as a manager.
+   * @param requestId - Request identifier.
+   * @param decision - Approval or denial status.
+   */
   const handleReviewRequest = (requestId: number, decision: (typeof RequestStatus)[keyof typeof RequestStatus]) => {
     if (!selectedUser || selectedUser.role !== "Manager") return;
     const result = reviewRequest(state, requestId, selectedUser.userId, decision);
@@ -339,6 +380,9 @@ function App() {
     setError("");
   };
 
+  /**
+   * Save draft business rules for a specific date.
+   */
   const handleSaveBusinessSettings = () => {
     const withRules = updateBusinessRules(
       state,
@@ -356,6 +400,9 @@ function App() {
     setError("");
   };
 
+  /**
+   * Save global business baseline settings.
+   */
   const handleSaveGlobalBaseline = () => {
     const result = updateGlobalBusinessBaseline(
       state,
@@ -372,6 +419,10 @@ function App() {
     setError("");
   };
 
+  /**
+   * Delete a shift and cleanup related posted shift state.
+   * @param shiftId - ID of the shift to delete.
+   */
   const handleDeleteShift = (shiftId: number) => {
     if (!selectedUser || selectedUser.role !== "Manager") return;
     const result = deleteShift(state, shiftId);
@@ -388,6 +439,9 @@ function App() {
     setError("");
   };
 
+  /**
+   * Add a manager-created shift using the current draft values.
+   */
   const handleAddManagerShift = () => {
     if (!selectedUser || selectedUser.role !== "Manager") return;
     const manager = state.managers.find((item) => item.userId === selectedUser.userId) as Manager;
@@ -405,6 +459,9 @@ function App() {
     setError("");
   };
 
+  /**
+   * Generate an AI-created schedule for the selected date.
+   */
   const handleGenerateAI = () => {
     if (!selectedUser || selectedUser.role !== "Manager") return;
     const manager = state.managers.find((item) => item.userId === selectedUser.userId) as Manager;

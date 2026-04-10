@@ -9,12 +9,21 @@ import type { AppState } from "./types.js";
 const PORT = Number(process.env.PORT ?? "3001");
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+/**
+ * Load the initial seed app state from the frontend data module.
+ * @returns Seed app state for reset or initialization.
+ */
 async function loadSeed(): Promise<AppState> {
   const seedPath = path.join(__dirname, "..", "..", "src", "data", "seed.ts");
   const mod = await import(pathToFileURL(seedPath).href);
   return mod.initialState as AppState;
 }
 
+/**
+ * Normalize an unknown server error into a string.
+ * @param e - Error value.
+ * @returns Human-readable error message.
+ */
 function formatServerError(e: unknown): string {
   if (e && typeof e === "object" && "sqlMessage" in e && typeof (e as { sqlMessage?: unknown }).sqlMessage === "string") {
     return (e as { sqlMessage: string }).sqlMessage;
@@ -23,6 +32,11 @@ function formatServerError(e: unknown): string {
   return String(e);
 }
 
+/**
+ * Validate that a request body matches AppState shape.
+ * @param body - Incoming request body.
+ * @returns True when the payload is AppState.
+ */
 function isAppState(body: unknown): body is AppState {
   if (!body || typeof body !== "object") return false;
   const o = body as Record<string, unknown>;
@@ -34,6 +48,9 @@ function isAppState(body: unknown): body is AppState {
   );
 }
 
+/**
+ * Bootstrap and start the Express API server.
+ */
 async function main() {
   const seed = await loadSeed();
   const app = express();
