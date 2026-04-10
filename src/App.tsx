@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import "./App.css";
 import logo from "./images/ScheduForge Logo.png";
-import { TimeField12h } from "./components/TimeField12h";
 import { loadAppState, resetAppStateStorage, saveAppState } from "./data/localDb";
 import { pullAppStateFromApi, pushAppStateToApi, resetMysqlDatabase } from "./data/mysqlSync";
 import { formatSaveErrorForUser } from "./data/saveErrorMessage";
@@ -12,22 +11,21 @@ import {
   deleteShift,
   generateAIHandsOffSchedule,
   getBusinessRulesForDate,
-  getDailyOperationalStatus,
-  isPublished,
   updateBusinessRules,
   updateGlobalBusinessBaseline,
 } from "./modules/SchedulingModule";
 import { close } from "./modules/ShiftManagementModule";
-import { formatTime12h, formatTimeRange12h } from "./modules/moduleUtils";
 import { reviewRequest } from "./modules/ShiftRequestModule";
 import {
   authenticateUser,
   getAssignedShifts,
-  getReviewedRequests,
   postShift,
   registerUser,
   requestToCover,
 } from "./modules/UserManagementModule";
+import { LoginPage } from "./pages/LoginPage";
+import { EmployeePage } from "./pages/EmployeePage";
+import { ManagerPage } from "./pages/ManagerPage";
 
 type AuthMode = "login" | "signup";
 
@@ -422,480 +420,113 @@ function App() {
 
   if (!selectedUser) {
     return (
-      <main className="app authPage">
-        <section className="panel authCard">
-          <h1>ScheduForge Login</h1>
-          <p>Create an account or sign in.</p>
-          {error ? <p className="error">{error}</p> : null}
-          {dbSyncError ? <p className="error">{dbSyncError}</p> : null}
-          <div className="actions">
-            <select value={authMode} onChange={(e) => setAuthMode(e.target.value as AuthMode)}>
-              <option value="login">Log In</option>
-              <option value="signup">Sign Up</option>
-            </select>
-          </div>
-          {authMode === "login" ? (
-            <>
-              <label>Email</label>
-              <input value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} />
-              <label>Password</label>
-              <input type="password" value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)} />
-              <button onClick={handleLogin}>Log In</button>
-            </>
-          ) : (
-            <>
-              <label>Name</label>
-              <input value={signupForm.name} onChange={(e) => setSignupForm((p) => ({ ...p, name: e.target.value }))} />
-              <label>Email</label>
-              <input value={signupForm.email} onChange={(e) => setSignupForm((p) => ({ ...p, email: e.target.value }))} />
-              <label>Role</label>
-              <select value={signupForm.role} onChange={(e) => setSignupForm((p) => ({ ...p, role: e.target.value as UserRole }))}>
-                <option value="Employee">Employee</option>
-                <option value="Manager">Manager</option>
-              </select>
-              <label>Password</label>
-              <input type="password" value={signupForm.password} onChange={(e) => setSignupForm((p) => ({ ...p, password: e.target.value }))} />
-              <button onClick={handleSignUp}>Create Account</button>
-            </>
-          )}
-          <button className="ghost" type="button" onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}>
-            {theme === "light" ? "Dark mode" : "Light mode"}
-          </button>
-          <button className="ghost" type="button" onClick={() => void handleResetDatabase()}>
-            Reset Database
-          </button>
-        </section>
-      </main>
+      <LoginPage
+        authMode={authMode}
+        setAuthMode={setAuthMode}
+        loginEmail={loginEmail}
+        setLoginEmail={setLoginEmail}
+        loginPassword={loginPassword}
+        setLoginPassword={setLoginPassword}
+        signupForm={signupForm}
+        setSignupForm={setSignupForm}
+        error={error}
+        dbSyncError={dbSyncError}
+        handleLogin={handleLogin}
+        handleSignUp={handleSignUp}
+        handleResetDatabase={handleResetDatabase}
+        theme={theme}
+        setTheme={setTheme}
+      />
+    );
+  }
+
+  if (isManager) {
+    return (
+      <ManagerPage
+        state={state}
+        selectedUser={selectedUser}
+        error={error}
+        dbSyncError={dbSyncError}
+        theme={theme}
+        employeeShiftViewDate={employeeShiftViewDate}
+        setEmployeeShiftViewDate={setEmployeeShiftViewDate}
+        managerShiftViewDate={managerShiftViewDate}
+        setManagerShiftViewDate={setManagerShiftViewDate}
+        postReasonByShiftId={postReasonByShiftId}
+        setPostReasonByShiftId={(reasons: Record<number, string>) =>
+          setPostReasonByShiftId(reasons)
+        }
+        myShifts={myShifts}
+        managerFilteredShifts={managerFilteredShifts}
+        openShiftRows={openShiftRows}
+        businessRulesDate={businessRulesDate}
+        setBusinessRulesDate={setBusinessRulesDate}
+        openTimeDraft={openTimeDraft}
+        setOpenTimeDraft={setOpenTimeDraft}
+        closeTimeDraft={closeTimeDraft}
+        setCloseTimeDraft={setCloseTimeDraft}
+        minimumOpeningManagersDraft={minimumOpeningManagersDraft}
+        setMinimumOpeningManagersDraft={setMinimumOpeningManagersDraft}
+        minimumOpeningEmployeesDraft={minimumOpeningEmployeesDraft}
+        setMinimumOpeningEmployeesDraft={setMinimumOpeningEmployeesDraft}
+        baselineOpenDraft={baselineOpenDraft}
+        setBaselineOpenDraft={setBaselineOpenDraft}
+        baselineCloseDraft={baselineCloseDraft}
+        setBaselineCloseDraft={setBaselineCloseDraft}
+        baselineMinManagersDraft={baselineMinManagersDraft}
+        setBaselineMinManagersDraft={setBaselineMinManagersDraft}
+        baselineMinEmployeesDraft={baselineMinEmployeesDraft}
+        setBaselineMinEmployeesDraft={setBaselineMinEmployeesDraft}
+        aiDate={aiDate}
+        setAiDate={setAiDate}
+        operationsCheckDate={operationsCheckDate}
+        setOperationsCheckDate={setOperationsCheckDate}
+        managerShiftDraft={managerShiftDraft}
+        setManagerShiftDraft={setManagerShiftDraft}
+        managerSaveError={managerSaveError}
+        myNotifications={myNotifications}
+        pendingRequests={pendingRequests}
+        handlePostShift={handlePostShift}
+        handleDeleteShift={handleDeleteShift}
+        handleRequestToCover={handleRequestToCover}
+        handleUnpostShift={handleUnpostShift}
+        handleAddManagerShift={handleAddManagerShift}
+        handleGenerateAI={handleGenerateAI}
+        handleSaveBusinessSettings={handleSaveBusinessSettings}
+        handleSaveGlobalBaseline={handleSaveGlobalBaseline}
+        handleReviewRequest={handleReviewRequest}
+        handleLogout={handleLogout}
+        setTheme={setTheme}
+        logo={logo}
+        assignmentLabelsFunc={assignmentLabels}
+      />
     );
   }
 
   return (
-    <main className="app">
-      <header className="topBar">
-        <div className="brand">
-          <img src={logo} alt="ScheduForge logo" />
-          <div>
-            <h1>ScheduForge</h1>
-            <p className="topBar-tagline">Shift scheduling, simplified</p>
-          </div>
-        </div>
-        <div className="loginPanel">
-          <p>Signed in: {selectedUser.name} ({selectedUser.role})</p>
-          <div className="topBar-actions">
-            <button
-              type="button"
-              className="ghost themeToggle"
-              onClick={() => setTheme((t) => (t === "light" ? "dark" : "light"))}
-              aria-label={theme === "light" ? "Switch to dark theme" : "Switch to light theme"}
-            >
-              {theme === "light" ? "◐" : "◑"}
-            </button>
-            <button type="button" className="ghost" onClick={handleLogout}>
-              Log Out
-            </button>
-          </div>
-        </div>
-      </header>
-
-      {error ? <p className="error">{error}</p> : null}
-      {dbSyncError ? <p className="error">{dbSyncError}</p> : null}
-
-      <section className="grid">
-        <article className="panel">
-          <h2>{isManager ? "All Assigned Shifts" : "My Schedule"}</h2>
-          <div className="list">
-            {!isManager && (
-              <div className="card">
-                <label>View shifts for date (optional)</label>
-                <input
-                  type="date"
-                  value={employeeShiftViewDate}
-                  onChange={(e) => setEmployeeShiftViewDate(e.target.value)}
-                />
-                <button className="ghost" onClick={() => setEmployeeShiftViewDate("")}>
-                  Clear
-                </button>
-              </div>
-            )}
-            {isManager ? (
-              <div className="actions">
-                <label>View Date</label>
-                <input
-                  type="date"
-                  value={managerShiftViewDate}
-                  onChange={(e) => setManagerShiftViewDate(e.target.value)}
-                />
-                <button className="ghost" onClick={() => setManagerShiftViewDate("")}>
-                  Clear
-                </button>
-                {managerShiftViewDate && (
-                  <span
-                    className={
-                      getDailyOperationalStatus(state, managerShiftViewDate).canOperate
-                        ? "sf-status sf-status--ok"
-                        : "sf-status sf-status--bad"
-                    }
-                  >
-                    {getDailyOperationalStatus(state, managerShiftViewDate).canOperate
-                      ? "✓ Operational"
-                      : "✗ Not Operational"}
-                  </span>
-                )}
-              </div>
-            ) : null}
-            <div className={isManager ? "list-scroll--shifts" : undefined}>
-              {(isManager ? managerFilteredShifts : myShifts).map((shift) => {
-                const isMine = selectedUser != null && shift.assignedUserId === selectedUser.userId;
-                const { assignedBy, assignedTo } = assignmentLabels(state, shift);
-                return (
-                  <div key={shift.shiftId} className="card">
-                    <p>
-                      <strong>{shift.date}</strong> {formatTimeRange12h(shift.startTime, shift.endTime)}
-                    </p>
-                    <p>{shift.position}</p>
-                    <p>Assigned By: {assignedBy}</p>
-                    <p>Assigned To: {assignedTo}</p>
-                    {isManager ? (
-                      <div className="actions">
-                        <button
-                          type="button"
-                          className="ghost danger"
-                          onClick={() => handleDeleteShift(shift.shiftId)}
-                        >
-                          Delete shift
-                        </button>
-                      </div>
-                    ) : null}
-                    {!isManager && isMine ? (
-                      <div className="actions">
-                        <input
-                          placeholder="Reason for coverage"
-                          value={postReasonByShiftId[shift.shiftId] ?? ""}
-                          onChange={(event) =>
-                            setPostReasonByShiftId((prev) => ({ ...prev, [shift.shiftId]: event.target.value }))
-                          }
-                        />
-                        <button onClick={() => handlePostShift(shift.shiftId)}>Post Shift</button>
-                      </div>
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </article>
-
-        <article className="panel">
-          <h2>Available Shifts</h2>
-          <div className="list">
-            {openShiftRows.length === 0 ? <p>No open shifts.</p> : null}
-            {openShiftRows.map((row) => {
-              const { assignedBy, assignedTo } = assignmentLabels(state, row.shift!);
-              return (
-              <div key={row.availableShift.availableShiftId} className="card">
-                <p>
-                  <strong>{row.shift!.date}</strong>{" "}
-                  {formatTimeRange12h(row.shift!.startTime, row.shift!.endTime)}
-                </p>
-                <p>{row.shift!.position}</p>
-                <p>Assigned By: {assignedBy}</p>
-                <p>Assigned To: {assignedTo}</p>
-                <p>Posted by: {row.postedBy!.name}</p>
-                <p>Reason: {row.availableShift.reason}</p>
-                {row.postedBy!.userId !== selectedUser.userId ? (
-                  <button onClick={() => handleRequestToCover(row.availableShift.availableShiftId)}>
-                    Request to Cover
-                  </button>
-                ) : (
-                  <button className="ghost" onClick={() => handleUnpostShift(row.availableShift.availableShiftId)}>
-                    Unpost
-                  </button>
-                )}
-              </div>
-            );
-            })}
-          </div>
-        </article>
-
-        {isManager && (
-          <article className="panel">
-            <h2>My Shifts</h2>
-            {managerSaveError?.at === "post-coverage" ? (
-              <p className="error inline-save-error" role="alert">
-                {managerSaveError.text}
-              </p>
-            ) : null}
-            <div className="list-scroll--shifts">
-              <div className="card">
-                <label>View shifts for date (optional)</label>
-                <input
-                  type="date"
-                  value={employeeShiftViewDate}
-                  onChange={(e) => setEmployeeShiftViewDate(e.target.value)}
-                />
-                <button className="ghost" onClick={() => setEmployeeShiftViewDate("")}>
-                  Clear
-                </button>
-              </div>
-              {myShifts.map((shift) => {
-                const { assignedBy, assignedTo } = assignmentLabels(state, shift);
-                return (
-                  <div key={shift.shiftId} className="card">
-                    <p><strong>{shift.date} {formatTimeRange12h(shift.startTime, shift.endTime)}</strong></p>
-                    <p>{shift.position} @ {shift.location}</p>
-                    <p>Assigned By: {assignedBy}</p>
-                    <p>Assigned To: {assignedTo}</p>
-                    <textarea
-                      placeholder="Reason for posting (required)"
-                      value={postReasonByShiftId[shift.shiftId] ?? ""}
-                      onChange={(e) => setPostReasonByShiftId((prev) => ({ ...prev, [shift.shiftId]: e.target.value }))}
-                    />
-                    <button onClick={() => handlePostShift(shift.shiftId)}>Post for Coverage</button>
-                  </div>
-                );
-              })}
-              {myShifts.length === 0 && <p>No shifts assigned.</p>}
-            </div>
-          </article>
-        )}
-
-        {isManager && (
-          <article className="panel">
-            <h2>Shift Creation</h2>
-            <div className="list">
-              <div className="card">
-                <p><strong>Manager Shift Builder</strong></p>
-                <div className="actions">
-                  <label>Date</label>
-                  <input type="date" value={managerShiftDraft.date} onChange={(e) => setManagerShiftDraft((p) => ({ ...p, date: e.target.value }))} />
-                  <label>Assign To</label>
-                  <select
-                    value={managerShiftDraft.assignedUserId}
-                    onChange={(e) => setManagerShiftDraft((p) => ({ ...p, assignedUserId: Number(e.target.value) }))}
-                  >
-                    {state.users.map((user) => (
-                      <option key={`u-${user.userId}`} value={user.userId}>
-                        {user.name} ({user.role})
-                      </option>
-                    ))}
-                  </select>
-                  <label>Start</label>
-                  <TimeField12h
-                    value={managerShiftDraft.startTime}
-                    onChange={(v) => setManagerShiftDraft((p) => ({ ...p, startTime: v }))}
-                  />
-                  <label>End</label>
-                  <TimeField12h
-                    value={managerShiftDraft.endTime}
-                    onChange={(v) => setManagerShiftDraft((p) => ({ ...p, endTime: v }))}
-                  />
-                  <button onClick={handleAddManagerShift}>Add Shift</button>
-                </div>
-                {managerSaveError?.at === "add-shift" ? (
-                  <p className="error inline-save-error" role="alert">
-                    {managerSaveError.text}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="card">
-                <p><strong>AI Hands-Off Mode</strong></p>
-                <p>Auto-create shifts by required roles and time slots.</p>
-                <div className="actions">
-                  <input type="date" value={aiDate} onChange={(e) => setAiDate(e.target.value)} />
-                  <button onClick={handleGenerateAI}>Generate AI Schedule</button>
-                </div>
-                {managerSaveError?.at === "ai-schedule" ? (
-                  <p className="error inline-save-error" role="alert">
-                    {managerSaveError.text}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="card">
-                <p><strong>Operational Status Check</strong></p>
-                <div className="actions">
-                  <input
-                    type="date"
-                    value={operationsCheckDate}
-                    onChange={(e) => setOperationsCheckDate(e.target.value)}
-                  />
-                </div>
-                {operationsCheckDate ? (
-                  <p
-                    className={
-                      getDailyOperationalStatus(state, operationsCheckDate).canOperate
-                        ? "sf-status sf-status--ok"
-                        : "sf-status sf-status--bad"
-                    }
-                  >
-                    {getDailyOperationalStatus(state, operationsCheckDate).message}
-                  </p>
-                ) : (
-                  <p>Select a date to see if the business can operate.</p>
-                )}
-              </div>
-            </div>
-          </article>
-        )}
-
-        {isManager && (
-          <article className="panel">
-            <h2>Notifications</h2>
-            <div className="list">
-              {myNotifications.length === 0 ? <p>No notifications yet.</p> : null}
-              {myNotifications.map((item) => (
-                <div key={item.notificationId} className="card">
-                  <p>{item.message}</p>
-                  <small>{new Date(item.createdAt).toLocaleString()}</small>
-                </div>
-              ))}
-            </div>
-          </article>
-        )}
-
-        <article className="panel">
-          <h2>{isManager ? "Manager Requests Queue" : "My Request History"}</h2>
-          <div className="list">
-            {isManager ? (
-              <>
-                {pendingRequests.length === 0 ? <p>No pending requests.</p> : null}
-                {pendingRequests.map((row) => {
-                  const { assignedBy, assignedTo } = assignmentLabels(state, row.shift!);
-                  return (
-                  <div key={row.request.requestID} className="card">
-                    <p>
-                      Shift {row.shift!.shiftId}: {row.shift!.date}{" "}
-                      {formatTimeRange12h(row.shift!.startTime, row.shift!.endTime)}
-                    </p>
-                    <p>Assigned By: {assignedBy}</p>
-                    <p>Assigned To: {assignedTo}</p>
-                    <p>Requested by {row.requester!.name} to cover {row.poster!.name}</p>
-                    <div className="actions">
-                      <button onClick={() => handleReviewRequest(row.request.requestID, RequestStatus.APPROVED)}>Approve</button>
-                      <button className="ghost" onClick={() => handleReviewRequest(row.request.requestID, RequestStatus.DENIED)}>Deny</button>
-                    </div>
-                  </div>
-                );
-                })}
-              </>
-            ) : (
-              <>
-                {state.shiftRequests.filter((item) => item.requesterId === selectedUser.userId).map((request) => {
-                  const availableShift = state.availableShifts.find(
-                    (a) => a.availableShiftId === request.availableShiftId,
-                  );
-                  const shiftForRequest = availableShift
-                    ? state.shifts.find((s) => s.shiftId === availableShift.shiftId)
-                    : undefined;
-                  const { assignedBy, assignedTo } = shiftForRequest
-                    ? assignmentLabels(state, shiftForRequest)
-                    : { assignedBy: "—", assignedTo: "—" };
-                  return (
-                    <div key={request.requestID} className="card">
-                      <p>Request #{request.requestID}</p>
-                      <p>Status: {request.status}</p>
-                      {shiftForRequest ? (
-                        <p>
-                          <strong>{shiftForRequest.date}</strong>{" "}
-                          {formatTimeRange12h(shiftForRequest.startTime, shiftForRequest.endTime)}
-                        </p>
-                      ) : null}
-                      <p>Assigned By: {assignedBy}</p>
-                      <p>Assigned To: {assignedTo}</p>
-                    </div>
-                  );
-                })}
-                {state.shiftRequests.filter((item) => item.requesterId === selectedUser.userId).length === 0 ? <p>No requests yet.</p> : null}
-              </>
-            )}
-          </div>
-        </article>
-
-        <article className="panel">
-          <h2>{isManager ? "Schedule Controls" : "Notifications"}</h2>
-          {isManager ? (
-            <div className="list">
-              <div className="card">
-                <p><strong>Global baseline (default for all dates)</strong></p>
-                <p className="hint">
-                  Used whenever a date has no custom rules below. Edit here to change the business-wide
-                  default hours and staffing minimums.
-                </p>
-                <div className="actions">
-                  <label>Open</label>
-                  <TimeField12h value={baselineOpenDraft} onChange={setBaselineOpenDraft} />
-                  <label>Close</label>
-                  <TimeField12h value={baselineCloseDraft} onChange={setBaselineCloseDraft} />
-                  <label>Min Managers @ Open</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={baselineMinManagersDraft}
-                    onChange={(e) => setBaselineMinManagersDraft(Number(e.target.value))}
-                  />
-                  <label>Minimum Employees To Stay Open</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={baselineMinEmployeesDraft}
-                    onChange={(e) => setBaselineMinEmployeesDraft(Number(e.target.value))}
-                  />
-                </div>
-                <button onClick={handleSaveGlobalBaseline}>Save global baseline</button>
-              </div>
-
-              <div className="card">
-                <p><strong>Per-date overrides</strong></p>
-                <p className="hint">
-                  Pick a date on the calendar; open/close times and minimums apply to that day only. Other
-                  dates follow the global baseline (
-                  {formatTime12h(state.businessOpenTime)}–{formatTime12h(state.businessCloseTime)},{" "}
-                  {state.minimumOpeningManagers} manager
-                  {state.minimumOpeningManagers === 1 ? "" : "s"}, {state.minimumOpeningEmployees} employees).
-                </p>
-                <div className="actions">
-                  <label>Date</label>
-                  <input
-                    type="date"
-                    value={businessRulesDate}
-                    onChange={(e) => setBusinessRulesDate(e.target.value)}
-                  />
-                  <label>Open</label>
-                  <TimeField12h value={openTimeDraft} onChange={setOpenTimeDraft} />
-                  <label>Close</label>
-                  <TimeField12h value={closeTimeDraft} onChange={setCloseTimeDraft} />
-                  <label>Min Managers @ Open</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={minimumOpeningManagersDraft}
-                    onChange={(e) => setMinimumOpeningManagersDraft(Number(e.target.value))}
-                  />
-                  <label>Minimum Employees To Stay Open</label>
-                  <input
-                    type="number"
-                    min={0}
-                    value={minimumOpeningEmployeesDraft}
-                    onChange={(e) => setMinimumOpeningEmployeesDraft(Number(e.target.value))}
-                  />
-                </div>
-                <button onClick={handleSaveBusinessSettings}>Save for this date</button>
-              </div>
-            </div>
-          ) : (
-            <div className="list">
-              {myNotifications.length === 0 ? <p>No notifications yet.</p> : null}
-              {myNotifications.map((item) => (
-                <div key={item.notificationId} className="card">
-                  <p>{item.message}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </article>
-      </section>
-    </main>
+    <EmployeePage
+      state={state}
+      selectedUser={selectedUser}
+      error={error}
+      dbSyncError={dbSyncError}
+      theme={theme}
+      employeeShiftViewDate={employeeShiftViewDate}
+      setEmployeeShiftViewDate={setEmployeeShiftViewDate}
+      postReasonByShiftId={postReasonByShiftId}
+      setPostReasonByShiftId={(reasons: Record<number, string>) =>
+        setPostReasonByShiftId(reasons)
+      }
+      myShifts={myShifts}
+      openShiftRows={openShiftRows}
+      handlePostShift={handlePostShift}
+      handleRequestToCover={handleRequestToCover}
+      handleUnpostShift={handleUnpostShift}
+      handleLogout={handleLogout}
+      setTheme={setTheme}
+      logo={logo}
+      myNotifications={myNotifications}
+      assignmentLabelsFunc={assignmentLabels}
+    />
   );
 }
 

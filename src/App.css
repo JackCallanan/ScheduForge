@@ -175,6 +175,16 @@
   border-color: var(--sf-accent-soft);
 }
 
+.employee-header {
+  background: var(--sf-surface);
+  border-color: var(--sf-border-strong);
+}
+
+.shift-card {
+  margin-left: 1rem;
+  border-left: 3px solid var(--sf-accent);
+}
+
 .actions {
   display: flex;
   flex-direction: column;
