@@ -24,6 +24,7 @@ interface EmployeePageProps {
   setTheme: (theme: "light" | "dark") => void;
   logo: string;
   myNotifications: any[];
+  handleDeleteNotification: (notificationId: number) => void;
   assignmentLabelsFunc: (state: AppState, shift: Shift) => { assignedBy: string; assignedTo: string };
 }
 
@@ -51,6 +52,7 @@ export function EmployeePage({
   setTheme,
   logo,
   myNotifications,
+  handleDeleteNotification,
   assignmentLabelsFunc,
 }: EmployeePageProps) {
   return (
@@ -201,11 +203,21 @@ export function EmployeePage({
 
         <article className="panel">
           <h2>Notifications</h2>
-          <div className="list">
+          <div className="list list-scroll--notifications">
             {myNotifications.length === 0 ? <p>No notifications yet.</p> : null}
             {myNotifications.map((item) => (
-              <div key={item.notificationId} className="card">
-                <p>{item.message}</p>
+              <div key={item.notificationId} className="card notification-card">
+                <div className="notification-content">
+                  <p>{item.message}</p>
+                  <small>{new Date(item.createdAt).toLocaleString()}</small>
+                </div>
+                <button
+                  className="ghost danger"
+                  onClick={() => handleDeleteNotification(item.notificationId)}
+                  title="Delete notification"
+                >
+                  ✕
+                </button>
               </div>
             ))}
           </div>

@@ -50,6 +50,7 @@ interface ManagerPageProps {
   setManagerShiftDraft: (draft: NewShiftInput | ((prev: NewShiftInput) => NewShiftInput)) => void;
   managerSaveError: { text: string; at: "add-shift" | "ai-schedule" | "post-coverage" } | null;
   myNotifications: any[];
+  handleDeleteNotification: (notificationId: number) => void;
   pendingRequests: Array<{
     request: any;
     shift: Shift | undefined;
@@ -117,6 +118,7 @@ export function ManagerPage({
   setManagerShiftDraft,
   managerSaveError,
   myNotifications,
+  handleDeleteNotification,
   pendingRequests,
   handlePostShift,
   handleDeleteShift,
@@ -133,6 +135,7 @@ export function ManagerPage({
   assignmentLabelsFunc,
 }: ManagerPageProps) {
   const [openEmployeeSections, setOpenEmployeeSections] = useState<Record<string, boolean>>({});
+  const [shiftViewMode, setShiftViewMode] = useState<"grouped" | "flat">("grouped");
 
   const groupedShifts = useMemo(() => {
     const groups = managerFilteredShifts.reduce((acc, shift) => {
@@ -189,6 +192,20 @@ export function ManagerPage({
           <h2>All Assigned Shifts</h2>
           <div className="list">
             <div className="actions">
+              <button
+                className={shiftViewMode === "grouped" ? "" : "ghost"}
+                onClick={() => setShiftViewMode("grouped")}
+              >
+                Group by Employee
+              </button>
+              <button
+                className={shiftViewMode === "flat" ? "" : "ghost"}
+                onClick={() => setShiftViewMode("flat")}
+              >
+                List All Shifts
+              </button>
+            </div>
+            <div className="actions">
               <label>View Date</label>
               <input
                 type="date"
@@ -213,49 +230,74 @@ export function ManagerPage({
               )}
             </div>
             <div className="list-scroll--shifts">
-              {Array.from(groupedShifts.entries()).map(([employeeName, shifts]) => {
-                const isOpen = openEmployeeSections[employeeName] ?? false;
-                return (
-                  <div key={employeeName}>
-                    <div
-                      className="card employee-header"
-                      onClick={() => toggleEmployeeSection(employeeName)}
-                      style={{ cursor: 'pointer' }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <p style={{ margin: 0, fontWeight: 'bold' }}>
-                          {employeeName} ({shifts.length} shift{shifts.length !== 1 ? 's' : ''})
-                        </p>
-                        <span style={{ fontSize: '1.2em', userSelect: 'none' }}>
-                          {isOpen ? '▼' : '▶'}
-                        </span>
+              {shiftViewMode === "grouped" ? (
+                Array.from(groupedShifts.entries()).map(([employeeName, shifts]) => {
+                  const isOpen = openEmployeeSections[employeeName] ?? false;
+                  return (
+                    <div key={employeeName}>
+                      <div
+                        className="card employee-header"
+                        onClick={() => toggleEmployeeSection(employeeName)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <p style={{ margin: 0, fontWeight: 'bold' }}>
+                            {employeeName} ({shifts.length} shift{shifts.length !== 1 ? 's' : ''})
+                          </p>
+                          <span style={{ fontSize: '1.2em', userSelect: 'none' }}>
+                            {isOpen ? '▼' : '▶'}
+                          </span>
+                        </div>
+                      </div>
+                      {isOpen && shifts.map((shift) => {
+                        const { assignedBy, assignedTo } = assignmentLabelsFunc(state, shift);
+                        return (
+                          <div key={shift.shiftId} className="card shift-card">
+                            <p>
+                              <strong>{shift.date}</strong> {formatTimeRange12h(shift.startTime, shift.endTime)}
+                            </p>
+                            <p>{shift.position}</p>
+                            <p>Assigned By: {assignedBy}</p>
+                            <p>Assigned To: {assignedTo}</p>
+                            <div className="actions">
+                              <button
+                                type="button"
+                                className="ghost danger"
+                                onClick={() => handleDeleteShift(shift.shiftId)}
+                              >
+                                Delete shift
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })
+              ) : (
+                managerFilteredShifts.map((shift) => {
+                  const { assignedBy, assignedTo } = assignmentLabelsFunc(state, shift);
+                  return (
+                    <div key={shift.shiftId} className="card shift-card">
+                      <p>
+                        <strong>{shift.date}</strong> {formatTimeRange12h(shift.startTime, shift.endTime)}
+                      </p>
+                      <p>{shift.position}</p>
+                      <p>Assigned By: {assignedBy}</p>
+                      <p>Assigned To: {assignedTo}</p>
+                      <div className="actions">
+                        <button
+                          type="button"
+                          className="ghost danger"
+                          onClick={() => handleDeleteShift(shift.shiftId)}
+                        >
+                          Delete shift
+                        </button>
                       </div>
                     </div>
-                    {isOpen && shifts.map((shift) => {
-                      const { assignedBy, assignedTo } = assignmentLabelsFunc(state, shift);
-                      return (
-                        <div key={shift.shiftId} className="card shift-card">
-                          <p>
-                            <strong>{shift.date}</strong> {formatTimeRange12h(shift.startTime, shift.endTime)}
-                          </p>
-                          <p>{shift.position}</p>
-                          <p>Assigned By: {assignedBy}</p>
-                          <p>Assigned To: {assignedTo}</p>
-                          <div className="actions">
-                            <button
-                              type="button"
-                              className="ghost danger"
-                              onClick={() => handleDeleteShift(shift.shiftId)}
-                            >
-                              Delete shift
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+                  );
+                })
+              )}
             </div>
           </div>
         </article>
@@ -433,12 +475,21 @@ export function ManagerPage({
 
         <article className="panel">
           <h2>Notifications</h2>
-          <div className="list">
+          <div className="list list-scroll--notifications">
             {myNotifications.length === 0 ? <p>No notifications yet.</p> : null}
             {myNotifications.map((item) => (
-              <div key={item.notificationId} className="card">
-                <p>{item.message}</p>
-                <small>{new Date(item.createdAt).toLocaleString()}</small>
+              <div key={item.notificationId} className="card notification-card">
+                <div className="notification-content">
+                  <p>{item.message}</p>
+                  <small>{new Date(item.createdAt).toLocaleString()}</small>
+                </div>
+                <button
+                  className="ghost danger"
+                  onClick={() => handleDeleteNotification(item.notificationId)}
+                  title="Delete notification"
+                >
+                  ✕
+                </button>
               </div>
             ))}
           </div>

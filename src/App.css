@@ -160,6 +160,50 @@
   border-radius: 99px;
 }
 
+.list-scroll--notifications {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-height: min(35vh, 22rem);
+  overflow-y: auto;
+  padding-right: 0.35rem;
+  scrollbar-gutter: stable;
+}
+
+.list-scroll--notifications::-webkit-scrollbar {
+  width: 8px;
+}
+
+.list-scroll--notifications::-webkit-scrollbar-thumb {
+  background: var(--sf-border-strong);
+  border-radius: 99px;
+}
+
+.card.notification-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.notification-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.notification-card small {
+  font-size: 0.8rem;
+}
+
+.notification-card button {
+  min-width: auto;
+  padding: 0.35rem 0.5rem;
+  font-size: 1rem;
+  line-height: 1;
+}
+
 .card {
   border: 1px solid var(--sf-border);
   border-radius: var(--sf-radius-sm);

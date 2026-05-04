@@ -48,7 +48,7 @@ export function LoginPage({
   return (
     <main className="app authPage">
       <section className="panel authCard">
-        <h1>ScheduForge Login</h1>
+        <h1>ScheduForge {authMode === "login" ? "Login" : "Sign Up"}</h1>
         <p>Create an account or sign in.</p>
         {error ? <p className="error">{error}</p> : null}
         {dbSyncError ? <p className="error">{dbSyncError}</p> : null}

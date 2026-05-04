@@ -475,6 +475,18 @@ function App() {
     setError("");
   };
 
+  /**
+   * Delete a notification by ID.
+   */
+  const handleDeleteNotification = (notificationId: number) => {
+    setState((prevState) => ({
+      ...prevState,
+      notifications: prevState.notifications.filter(
+        (notif) => notif.notificationId !== notificationId,
+      ),
+    }));
+  };
+
   if (!selectedUser) {
     return (
       <LoginPage
@@ -542,6 +554,7 @@ function App() {
         setManagerShiftDraft={setManagerShiftDraft}
         managerSaveError={managerSaveError}
         myNotifications={myNotifications}
+        handleDeleteNotification={handleDeleteNotification}
         pendingRequests={pendingRequests}
         handlePostShift={handlePostShift}
         handleDeleteShift={handleDeleteShift}
@@ -582,6 +595,7 @@ function App() {
       setTheme={setTheme}
       logo={logo}
       myNotifications={myNotifications}
+      handleDeleteNotification={handleDeleteNotification}
       assignmentLabelsFunc={assignmentLabels}
     />
   );
